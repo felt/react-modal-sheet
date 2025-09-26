@@ -1,5 +1,6 @@
 import {
   animate,
+  Axis,
   type DragHandler,
   motion,
   type Transition,
@@ -19,6 +20,7 @@ import useMeasure from 'react-use-measure';
 import {
   DEFAULT_DRAG_CLOSE_THRESHOLD,
   DEFAULT_DRAG_VELOCITY_THRESHOLD,
+  DEFAULT_TOP_CONSTRAINT,
   DEFAULT_TWEEN_CONFIG,
   IS_SSR,
   REDUCED_MOTION_TWEEN_CONFIG,
@@ -37,7 +39,7 @@ import {
 } from './snap';
 import { styles } from './styles';
 import { type SheetContextType, type SheetProps } from './types';
-import { applyStyles, waitForElement } from './utils';
+import { applyConstraints, applyStyles, waitForElement } from './utils';
 
 export const Sheet = forwardRef<any, SheetProps>(
   (
@@ -61,6 +63,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       style,
       tweenConfig = DEFAULT_TWEEN_CONFIG,
       unstyled = false,
+      dragConstraints: dragConstraintsProp,
       onOpenStart,
       onOpenEnd,
       onClose,
@@ -83,9 +86,27 @@ export const Sheet = forwardRef<any, SheetProps>(
         ? computeSnapPoints({ sheetHeight, snapPointsProp })
         : [];
 
+    // for default & content detents, the sheet height is constrained instead of the drag
+    const sheetHeightConstraint =
+      detent === 'full'
+        ? 0
+        : (dragConstraintsProp?.min ?? DEFAULT_TOP_CONSTRAINT);
+
+    const dragBottomConstraint =
+      (dragConstraintsProp?.max ?? Infinity) - sheetHeightConstraint;
+
+    const dragConstraints: Axis = {
+      min: 0, // top constraint (applied through sheet height instead)
+      max: dragBottomConstraint, // bottom constraint
+    };
+
     const { windowHeight } = useDimensions();
     const closedY = sheetHeight > 0 ? sheetHeight : windowHeight;
     const y = useMotionValue(closedY);
+    const yUnconstrainedRef = useRef<number | undefined>(undefined);
+    // y is below 0 when the sheet is overextended
+    // this happens because the sheet is elastic and can be dragged beyond the full open position
+    const yOverflow = useTransform(y, (val) => (val < 0 ? Math.abs(val) : 0));
     const yInverted = useTransform(y, (val) => Math.max(sheetHeight - val, 0));
     const indicatorRotation = useMotionValue(0);
 
@@ -173,27 +194,37 @@ export const Sheet = forwardRef<any, SheetProps>(
     });
 
     const onDrag = useStableCallback<DragHandler>((event, info) => {
-      onDragProp?.(event, info);
+      if (yUnconstrainedRef.current === undefined) return;
 
-      const currentY = y.get();
+      onDragProp?.(event, info);
+      if (event.defaultPrevented) return;
 
       // Update drag indicator rotation based on drag velocity
       const velocity = y.getVelocity();
       if (velocity > 0) indicatorRotation.set(10);
       if (velocity < 0) indicatorRotation.set(-10);
 
-      // Make sure user cannot drag beyond the top of the sheet
-      y.set(Math.max(currentY + info.delta.y, 0));
+      const currentY = yUnconstrainedRef.current;
+      const nextY = currentY + info.delta.y;
+      yUnconstrainedRef.current = nextY;
+      const constrainedY = applyConstraints(nextY, dragConstraints, {
+        min: 0.1,
+        max: 0.1,
+      });
+      y.set(constrainedY);
     });
 
     const onDragStart = useStableCallback<DragHandler>((event, info) => {
-      blurActiveInput();
+      yUnconstrainedRef.current = y.get();
       onDragStartProp?.(event, info);
+      if (event.defaultPrevented) return;
+      blurActiveInput();
     });
 
     const onDragEnd = useStableCallback<DragHandler>((event, info) => {
-      blurActiveInput();
       onDragEndProp?.(event, info);
+      if (event.defaultPrevented) return;
+      blurActiveInput();
 
       const currentY = y.get();
 
@@ -258,6 +289,7 @@ export const Sheet = forwardRef<any, SheetProps>(
 
       // Update the spring value so that the sheet is animated to the snap point
       animate(y, yTo, animationOptions);
+      yUnconstrainedRef.current = undefined;
 
       // +1px for imprecision tolerance
       // Only call onClose if disableDismiss is false or if we're actually closing
@@ -274,6 +306,9 @@ export const Sheet = forwardRef<any, SheetProps>(
       yInverted,
       height: sheetHeight,
       snapTo,
+      getSnapPoint,
+      snapPoints,
+      currentSnap,
     }));
 
     useModalEffect({
@@ -348,6 +383,9 @@ export const Sheet = forwardRef<any, SheetProps>(
       sheetRef,
       unstyled,
       y,
+      yOverflow,
+      sheetHeight,
+      sheetHeightConstraint,
     };
 
     const sheet = (

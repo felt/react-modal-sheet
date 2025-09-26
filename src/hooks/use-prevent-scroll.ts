@@ -158,6 +158,7 @@ function preventScrollMobileSafari() {
   const onTouchStart = (e: TouchEvent) => {
     // Use `composedPath` to support shadow DOM.
     const target = e.composedPath()?.[0] as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
     // Store the nearest scrollable parent element from the element that the user touched.
     scrollable = getScrollParent(target, true);
