@@ -81,7 +81,7 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
         dragConstraints={dragConstraints.ref}
         onMeasureDragConstraints={dragConstraints.onMeasure}
       >
-        {disableScroll ? (
+        {disableScrollProp === true ? (
           children
         ) : (
           <motion.div
