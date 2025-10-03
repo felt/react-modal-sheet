@@ -216,6 +216,9 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     const onDragStart = useStableCallback<DragHandler>((event, info) => {
       yUnconstrainedRef.current = y.get();
+      if (y.isAnimating()) {
+        y.stop();
+      }
       onDragStartProp?.(event, info);
       if (event.defaultPrevented) return;
       blurActiveInput();
@@ -229,6 +232,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       const currentY = y.get();
 
       let yTo = 0;
+      let snapIndex: number | undefined;
 
       const currentSnapPoint =
         currentSnap !== undefined ? getSnapPoint(currentSnap) : null;
@@ -257,6 +261,7 @@ export const Sheet = forwardRef<any, SheetProps>(
         }
 
         yTo = result.yTo;
+        snapIndex = result.snapIndex;
 
         // If disableDismiss is true, prevent closing via gesture
         if (disableDismiss && yTo + 1 >= sheetHeight) {
@@ -265,6 +270,7 @@ export const Sheet = forwardRef<any, SheetProps>(
 
           if (bottomSnapPoint) {
             yTo = bottomSnapPoint.snapValueY;
+            snapIndex = bottomSnapPoint.snapIndex;
             updateSnap(bottomSnapPoint.snapIndex);
           } else {
             // If no open snap points available, stay at current position
@@ -287,8 +293,14 @@ export const Sheet = forwardRef<any, SheetProps>(
         }
       }
 
+      const shouldBounce = currentSnapPoint?.snapIndex !== snapIndex;
+
+      const bounce = shouldBounce
+        ? linear(Math.abs(info.velocity.y), 0, 1000, 0.175, 0.25)
+        : 0;
+
       // Update the spring value so that the sheet is animated to the snap point
-      animate(y, yTo, animationOptions);
+      animate(y, yTo, { ...animationOptions, bounce });
       yUnconstrainedRef.current = undefined;
 
       // +1px for imprecision tolerance
@@ -414,3 +426,17 @@ export const Sheet = forwardRef<any, SheetProps>(
 );
 
 Sheet.displayName = 'Sheet';
+
+function linear(
+  value: number,
+  inputMin: number,
+  inputMax: number,
+  outputMin: number,
+  outputMax: number
+): number {
+  const t = Math.max(
+    0,
+    Math.min(1, (value - inputMin) / (inputMax - inputMin))
+  );
+  return outputMin + (outputMax - outputMin) * t;
+}
