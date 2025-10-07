@@ -44,7 +44,7 @@
     "link": "yalc publish && npm run link:example && npm run link:example-ssr",
     "link:example": "cd example && yalc add react-modal-sheet && npm i",
     "link:example-ssr": "cd example-ssr && yalc add react-modal-sheet && npm i",
-    "link:update": "tsup --dts-only && yalc push --replace",
+    "link:update": "tsup --dts-only && yalc push --sig --replace",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "verify": "run-p format:check lint:check typecheck",
