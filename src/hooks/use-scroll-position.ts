@@ -37,12 +37,19 @@ export function useScrollPosition() {
     }
   );
 
-  const { observeRef: ref } = useResizeObserver(
-    () => ref.current && determineScrollPosition(ref.current)
+  const [ref, setRef] = useState<HTMLDivElement | null>(null);
+
+  const { observeRef } = useResizeObserver(
+    () => ref && determineScrollPosition(ref)
   );
 
+  const mergedRef = (el: HTMLDivElement | null) => {
+    setRef(el);
+    observeRef(el);
+  };
+
   useEffect(() => {
-    const element = ref.current;
+    const element = ref;
     if (!element) return;
 
     let scrollTimeout: number | null = null;
@@ -72,7 +79,7 @@ export function useScrollPosition() {
       element.removeEventListener('scroll', onScroll);
       element.removeEventListener('touchstart', onTouchStart);
     };
-  }, []);
+  }, [ref]);
 
-  return { ref, scrollPosition };
+  return { ref: mergedRef, scrollPosition };
 }

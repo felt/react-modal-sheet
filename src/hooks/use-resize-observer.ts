@@ -1,10 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStableCallback } from './use-stable-callback';
 
 export function useResizeObserver<T extends Element = HTMLDivElement>(
   callback: ResizeObserverCallback
 ) {
-  const observeRef = useRef<T | null>(null);
+  const [observeElement, setObserveElement] = useState<T | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const debouncedCallback: ResizeObserverCallback = useStableCallback(
@@ -15,7 +15,7 @@ export function useResizeObserver<T extends Element = HTMLDivElement>(
   );
 
   useEffect(() => {
-    const element = observeRef.current;
+    const element = observeElement;
     if (!element) return;
 
     const observer = new ResizeObserver(debouncedCallback);
@@ -25,7 +25,7 @@ export function useResizeObserver<T extends Element = HTMLDivElement>(
       observer.disconnect();
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, []);
+  }, [observeElement]);
 
-  return { observeRef };
+  return { observeRef: setObserveElement };
 }
