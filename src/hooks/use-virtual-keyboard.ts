@@ -1,5 +1,6 @@
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { useStableCallback } from './use-stable-callback';
+import { isIOS } from '../utils';
 
 type VirtualKeyboardState = {
   isVisible: boolean;
@@ -63,12 +64,16 @@ export function useVirtualKeyboard({
     function setKeyboardInsetHeightEnv(height: number) {
       containerRef.current?.style.setProperty(
         '--keyboard-inset-height',
-        `${height}px`
+        `${isIOS() ? (height ? height + 20 : 0) : height}px`
       );
     }
 
     function handleFocusIn(e: FocusEvent) {
-      if (e.target instanceof HTMLElement && isTextInput(e.target)) {
+      if (
+        e.target instanceof HTMLElement &&
+        isTextInput(e.target) &&
+        containerRef.current?.contains(e.target)
+      ) {
         focusedElementRef.current = e.target;
         updateKeyboardState();
       }

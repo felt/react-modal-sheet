@@ -234,9 +234,29 @@ export function handleLowVelocityDrag({
     };
   }
 
-  // No snap point down, stay at current
-  return {
+  const noChangesResult = {
     yTo: currentSnapPoint.snapValueY,
     snapIndex: currentSnapPoint.snapIndex,
   };
+
+  switch (dragDirection) {
+    case 'down': {
+      const firstSnapPoint = snapPoints.at(0);
+      // No snap point down, stay at current
+      if (!firstSnapPoint) return noChangesResult;
+      return {
+        yTo: firstSnapPoint.snapValueY,
+        snapIndex: firstSnapPoint.snapIndex,
+      };
+    }
+    case 'up': {
+      const lastSnapPoint = snapPoints.at(-1);
+      // No snap point up, stay at current
+      if (!lastSnapPoint) return noChangesResult;
+      return {
+        yTo: lastSnapPoint.snapValueY,
+        snapIndex: lastSnapPoint.snapIndex,
+      };
+    }
+  }
 }
