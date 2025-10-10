@@ -319,6 +319,8 @@ export const Sheet = forwardRef<any, SheetProps>(
       isOpen ? 'opening' : 'closed'
     );
 
+    const currentSnapPoint = currentSnap ? getSnapPoint(currentSnap) : null;
+
     useImperativeHandle(
       ref,
       () => ({
@@ -329,6 +331,7 @@ export const Sheet = forwardRef<any, SheetProps>(
         getSnapPoint,
         snapPoints,
         currentSnap,
+        currentSnapPoint,
         openStateRef,
       }),
       [
@@ -339,6 +342,7 @@ export const Sheet = forwardRef<any, SheetProps>(
         getSnapPoint,
         snapPoints,
         currentSnap,
+        currentSnapPoint,
         openStateRef,
       ]
     );

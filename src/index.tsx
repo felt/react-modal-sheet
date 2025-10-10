@@ -18,6 +18,7 @@ export interface SheetRef {
   currentSnap: number | undefined;
   getSnapPoint: (index: number) => SheetSnapPoint | null;
   snapPoints: SheetSnapPoint[];
+  currentSnapPoint: SheetSnapPoint | null;
   openStateRef: RefObject<'closed' | 'open' | 'opening' | 'closing'>;
 }
 
