@@ -35,6 +35,7 @@ export interface SheetTweenConfig {
 export type SheetProps = {
   unstyled?: boolean;
   avoidKeyboard?: boolean;
+  onKeyboardOpen?: () => VoidFunction | undefined;
   children: ReactNode;
   detent?: SheetDetent;
   disableDismiss?: boolean;
