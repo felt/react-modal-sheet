@@ -70,6 +70,16 @@ export const isIOS = cached(function () {
   return isIPhone() || isIPad();
 });
 
+const isSafari = cached(function () {
+  return navigator.userAgent.search(/Safari/g) !== -1;
+});
+
+export const isIOSSafari26 = cached(function () {
+  if (!isIOS()) return false;
+  if (!isSafari()) return false;
+  return navigator.userAgent.search(/Version\/26[0-9.]*/g) !== -1;
+});
+
 /** Wait for an element to be rendered and visible */
 export function waitForElement(
   className: string,

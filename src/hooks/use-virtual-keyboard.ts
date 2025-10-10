@@ -1,5 +1,6 @@
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { useStableCallback } from './use-stable-callback';
+import { isIOSSafari26 } from '../utils';
 
 type VirtualKeyboardState = {
   isVisible: boolean;
@@ -63,12 +64,18 @@ export function useVirtualKeyboard({
     function setKeyboardInsetHeightEnv(height: number) {
       containerRef.current?.style.setProperty(
         '--keyboard-inset-height',
-        `${height}px`
+        // Safari 26 uses a floating address bar when keyboard is open that occludes the bottom of the sheet
+        // and its height is not considered in the visual viewport. It is estimated to be 25px.
+        `${isIOSSafari26() ? (height ? height + 25 : 0) : height}px`
       );
     }
 
     function handleFocusIn(e: FocusEvent) {
-      if (e.target instanceof HTMLElement && isTextInput(e.target)) {
+      if (
+        e.target instanceof HTMLElement &&
+        isTextInput(e.target) &&
+        containerRef.current?.contains(e.target)
+      ) {
         focusedElementRef.current = e.target;
         updateKeyboardState();
       }

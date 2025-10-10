@@ -10,6 +10,7 @@ import {
 } from 'motion/react';
 import React, {
   forwardRef,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
@@ -74,6 +75,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       onDrag: onDragProp,
       onDragStart: onDragStartProp,
       onDragEnd: onDragEndProp,
+      onKeyboardOpen,
       ...rest
     },
     ref
@@ -122,6 +124,7 @@ export const Sheet = forwardRef<any, SheetProps>(
     const keyboard = useVirtualKeyboard({
       isEnabled: isOpen && avoidKeyboard,
       containerRef: sheetRef,
+      debounceDelay: 0,
     });
 
     // Disable drag if the keyboard is open to avoid weird behavior
@@ -355,6 +358,32 @@ export const Sheet = forwardRef<any, SheetProps>(
       rootId: modalEffectRootId,
       startThreshold: modalEffectThreshold,
     });
+
+    const lastSnapPointIndex = snapPoints.length - 1;
+
+    const handleKeyboardOpen = useStableCallback(() => {
+      if (!onKeyboardOpen) {
+        const currentSnapPoint = currentSnap;
+        if (currentSnapPoint === lastSnapPointIndex) return;
+
+        // fully open the sheet
+        snapTo(lastSnapPointIndex);
+
+        // restore the previous snap point once the keyboard is closed
+        return () => {
+          currentSnapPoint !== undefined && snapTo(currentSnapPoint);
+        };
+      }
+
+      return onKeyboardOpen();
+    });
+
+    useEffect(() => {
+      if (openStateRef.current !== 'open') return;
+      if (detent !== 'default') return;
+      if (!keyboard.isKeyboardOpen) return;
+      return handleKeyboardOpen();
+    }, [keyboard.isKeyboardOpen]);
 
     /**
      * Motion should handle body scroll locking but it's not working properly on iOS.

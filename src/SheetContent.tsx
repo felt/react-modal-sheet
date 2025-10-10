@@ -66,9 +66,16 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
 
     const scrollStyle: MotionStyle = applyStyles(styles.scroller, isUnstyled);
 
+    const shouldRenderScroller = disableScrollProp === false || !disableScroll;
+
     if (sheetContext.avoidKeyboard) {
-      scrollStyle.paddingBottom =
-        'env(keyboard-inset-height, var(--keyboard-inset-height, 0px))';
+      if (disableScroll) {
+        contentStyle.paddingBottom =
+          'env(keyboard-inset-height, var(--keyboard-inset-height, 0px))';
+      } else {
+        scrollStyle.paddingBottom =
+          'env(keyboard-inset-height, var(--keyboard-inset-height, 0px))';
+      }
     }
 
     return (
@@ -81,9 +88,7 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
         dragConstraints={dragConstraints.ref}
         onMeasureDragConstraints={dragConstraints.onMeasure}
       >
-        {disableScrollProp === true ? (
-          children
-        ) : (
+        {shouldRenderScroller ? (
           <motion.div
             ref={mergeRefs([scroll.ref, scrollRefProp])}
             style={scrollStyle}
@@ -91,6 +96,8 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
           >
             {children}
           </motion.div>
+        ) : (
+          children
         )}
       </motion.div>
     );
