@@ -8,6 +8,7 @@ import { SheetHeader } from './SheetHeader';
 import { Sheet as SheetBase } from './sheet';
 import type { SheetCompound, SheetSnapPoint } from './types';
 import { useScrollPosition } from './hooks/use-scroll-position';
+import { RefObject } from 'react';
 
 export interface SheetRef {
   y: MotionValue<number>;
@@ -17,6 +18,8 @@ export interface SheetRef {
   currentSnap: number | undefined;
   getSnapPoint: (index: number) => SheetSnapPoint | null;
   snapPoints: SheetSnapPoint[];
+  currentSnapPoint: SheetSnapPoint | null;
+  openStateRef: RefObject<'closed' | 'open' | 'opening' | 'closing'>;
 }
 
 export const Sheet: SheetCompound = Object.assign(SheetBase, {

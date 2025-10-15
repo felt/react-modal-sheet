@@ -13,6 +13,7 @@ import React, {
   useImperativeHandle,
   useRef,
   useState,
+  useMemo,
 } from 'react';
 import { createPortal } from 'react-dom';
 import useMeasure from 'react-use-measure';
@@ -81,10 +82,11 @@ export const Sheet = forwardRef<any, SheetProps>(
     const sheetRef = useRef<HTMLDivElement>(null);
     const sheetHeight = Math.round(sheetBounds.height);
     const [currentSnap, setCurrentSnap] = useState(initialSnap);
-    const snapPoints =
-      snapPointsProp && sheetHeight > 0
+    const snapPoints = useMemo(() => {
+      return snapPointsProp && sheetHeight > 0
         ? computeSnapPoints({ sheetHeight, snapPointsProp })
         : [];
+    }, [sheetHeight, snapPointsProp]);
 
     // for default & content detents, the sheet height is constrained instead of the drag
     const sheetHeightConstraint =
@@ -313,15 +315,37 @@ export const Sheet = forwardRef<any, SheetProps>(
       indicatorRotation.set(0);
     });
 
-    useImperativeHandle(ref, () => ({
-      y,
-      yInverted,
-      height: sheetHeight,
-      snapTo,
-      getSnapPoint,
-      snapPoints,
-      currentSnap,
-    }));
+    const openStateRef = useRef<'closed' | 'open' | 'opening' | 'closing'>(
+      isOpen ? 'opening' : 'closed'
+    );
+
+    const currentSnapPoint = currentSnap ? getSnapPoint(currentSnap) : null;
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        y,
+        yInverted,
+        height: sheetHeight,
+        snapTo,
+        getSnapPoint,
+        snapPoints,
+        currentSnap,
+        currentSnapPoint,
+        openStateRef,
+      }),
+      [
+        y,
+        yInverted,
+        sheetHeight,
+        snapTo,
+        getSnapPoint,
+        snapPoints,
+        currentSnap,
+        currentSnapPoint,
+        openStateRef,
+      ]
+    );
 
     useModalEffect({
       y,
@@ -340,37 +364,98 @@ export const Sheet = forwardRef<any, SheetProps>(
       isDisabled: disableScrollLocking || !isOpen,
     });
 
+    const yListenersRef = useRef<VoidFunction[]>([]);
+    const clearYListeners = useStableCallback(() => {
+      yListenersRef.current.forEach((listener) => listener());
+      yListenersRef.current = [];
+    });
+
     const state = useSheetState({
       isOpen,
-      onOpen: async () => {
-        onOpenStart?.();
+      onOpen: () => {
+        return new Promise((resolve, reject) => {
+          clearYListeners();
 
-        /**
-         * This is not very React-y but we need to wait for the sheet
-         * but we need to wait for the sheet to be rendered and visible
-         * before we can measure it and animate it to the initial snap point.
-         */
-        await waitForElement('react-modal-sheet-container');
+          openStateRef.current = 'opening';
+          y.stop();
+          onOpenStart?.();
 
-        const initialSnapPoint =
-          initialSnap !== undefined ? getSnapPoint(initialSnap) : null;
+          const handleOpenEnd = () => {
+            if (initialSnap !== undefined) {
+              updateSnap(initialSnap);
+            }
 
-        const yTo = initialSnapPoint?.snapValueY ?? 0;
+            onOpenEnd?.();
+            openStateRef.current = 'open';
+          };
 
-        await animate(y, yTo, animationOptions);
+          yListenersRef.current.push(
+            y.on('animationCancel', () => {
+              clearYListeners();
 
-        if (initialSnap !== undefined) {
-          updateSnap(initialSnap);
-        }
+              if (openStateRef.current === 'opening') {
+                handleOpenEnd();
+                resolve();
+              } else {
+                reject('stopped opening');
+              }
+            }),
+            y.on('animationComplete', () => {
+              clearYListeners();
 
-        onOpenEnd?.();
+              handleOpenEnd();
+              resolve();
+            })
+          );
+
+          /**
+           * This is not very React-y but we need to wait for the sheet
+           * but we need to wait for the sheet to be rendered and visible
+           * before we can measure it and animate it to the initial snap point.
+           */
+          waitForElement('react-modal-sheet-container').then(() => {
+            const initialSnapPoint =
+              initialSnap !== undefined ? getSnapPoint(initialSnap) : null;
+
+            const yTo = initialSnapPoint?.snapValueY ?? 0;
+
+            animate(y, yTo, animationOptions);
+          });
+        });
       },
-      onClosing: async () => {
-        onCloseStart?.();
+      onClosing: () => {
+        return new Promise((resolve, reject) => {
+          clearYListeners();
 
-        await animate(y, closedY, animationOptions);
+          openStateRef.current = 'closing';
+          onCloseStart?.();
 
-        onCloseEnd?.();
+          const handleCloseEnd = () => {
+            onCloseEnd?.();
+            openStateRef.current = 'closed';
+          };
+
+          yListenersRef.current.push(
+            y.on('animationCancel', () => {
+              clearYListeners();
+
+              if (openStateRef.current === 'closing') {
+                handleCloseEnd();
+                resolve();
+              } else {
+                reject('stopped closing');
+              }
+            }),
+            y.on('animationComplete', () => {
+              clearYListeners();
+
+              handleCloseEnd();
+              resolve();
+            })
+          );
+
+          animate(y, closedY, animationOptions);
+        });
       },
     });
 

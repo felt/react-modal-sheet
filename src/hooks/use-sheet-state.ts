@@ -25,12 +25,8 @@ export function useSheetState({
   const onClosing = useStableCallback(() => _onClosing?.());
 
   useEffect(() => {
-    if (isOpen && state === 'closed') {
-      setState('opening');
-    } else if (!isOpen && (state === 'open' || state === 'opening')) {
-      setState('closing');
-    }
-  }, [isOpen, state]);
+    setState(isOpen ? 'opening' : 'closing');
+  }, [isOpen]);
 
   useEffect(() => {
     async function handle() {
@@ -55,7 +51,9 @@ export function useSheetState({
       }
     }
     handle().catch((error) => {
-      console.error('Internal sheet state error:', error);
+      if (error instanceof Error) {
+        console.error('Internal sheet state error:', error);
+      }
     });
   }, [state]);
 
