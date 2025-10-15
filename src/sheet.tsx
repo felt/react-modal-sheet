@@ -456,6 +456,7 @@ export const Sheet = forwardRef<any, SheetProps>(
         return new Promise((resolve, reject) => {
           clearYListeners();
 
+          y.stop();
           openStateRef.current = 'closing';
           onCloseStart?.();
 
