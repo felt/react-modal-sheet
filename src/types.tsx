@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import {
+  Axis,
   type DragHandler,
   type EasingDefinition,
   type MotionValue,
@@ -34,6 +35,7 @@ export interface SheetTweenConfig {
 export type SheetProps = {
   unstyled?: boolean;
   avoidKeyboard?: boolean;
+  onKeyboardOpen?: (() => VoidFunction) | (() => void);
   children: ReactNode;
   detent?: SheetDetent;
   disableDismiss?: boolean;
@@ -41,6 +43,7 @@ export type SheetProps = {
   disableScrollLocking?: boolean;
   dragCloseThreshold?: number;
   dragVelocityThreshold?: number;
+  dragConstraints?: Partial<Axis>;
   initialSnap?: number; // index of snap points array
   isOpen: boolean;
   modalEffectRootId?: string;
@@ -115,6 +118,9 @@ export interface SheetContextType {
   sheetRef: RefObject<any>;
   unstyled: boolean;
   y: MotionValue<any>;
+  yOverflow: MotionValue<number>;
+  sheetHeight: number;
+  sheetHeightConstraint: number;
 }
 
 export interface SheetScrollerContextType {

@@ -1,4 +1,9 @@
-import { type MotionStyle, motion } from 'motion/react';
+import {
+  type MotionStyle,
+  motion,
+  useMotionValueEvent,
+  useTransform,
+} from 'motion/react';
 import React, { forwardRef } from 'react';
 
 import { DEFAULT_HEIGHT } from './constants';
@@ -6,6 +11,7 @@ import { useSheetContext } from './context';
 import { styles } from './styles';
 import { type SheetContainerProps } from './types';
 import { applyStyles, mergeRefs } from './utils';
+import { useDimensions } from './hooks/use-dimensions';
 
 export const SheetContainer = forwardRef<any, SheetContainerProps>(
   ({ children, style, className = '', unstyled, ...rest }, ref) => {
@@ -13,14 +19,46 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
 
     const isUnstyled = unstyled ?? sheetContext.unstyled;
 
+    const sheetHeightConstraint = sheetContext.sheetHeightConstraint;
+
+    useMotionValueEvent(sheetContext.yOverflow, 'change', (val) => {
+      sheetContext.sheetRef.current?.style.setProperty(
+        '--overflow',
+        val + 'px'
+      );
+    });
+
+    // y might be negative due to elastic
+    // for a better experience, we clamp the y value to 0
+    // and use the overflow value to add padding to the bottom of the container
+    // causing the illusion of the sheet being elastic
+    const y = sheetContext.y;
+    const nonNegativeY = useTransform(sheetContext.y, (val) =>
+      Math.max(0, val)
+    );
+
+    const { windowHeight } = useDimensions();
+    const didHitMaxHeight =
+      windowHeight - sheetHeightConstraint <= sheetContext.sheetHeight;
+
     const containerStyle: MotionStyle = {
       ...applyStyles(styles.container, isUnstyled),
       ...style,
-      y: sheetContext.y,
+      ...(isUnstyled
+        ? {
+            y,
+          }
+        : {
+            y: nonNegativeY,
+            // compensate height for the elastic behavior of the sheet
+            ...(!didHitMaxHeight && { paddingBottom: sheetContext.yOverflow }),
+          }),
     };
 
+    const constrainedHeight = `calc(${DEFAULT_HEIGHT} - ${sheetHeightConstraint}px)`;
+
     if (sheetContext.detent === 'default') {
-      containerStyle.height = DEFAULT_HEIGHT;
+      containerStyle.height = constrainedHeight;
     }
 
     if (sheetContext.detent === 'full') {
@@ -30,7 +68,7 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
 
     if (sheetContext.detent === 'content') {
       containerStyle.height = 'auto';
-      containerStyle.maxHeight = DEFAULT_HEIGHT;
+      containerStyle.maxHeight = constrainedHeight;
     }
 
     return (
