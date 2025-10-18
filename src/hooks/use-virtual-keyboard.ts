@@ -62,12 +62,20 @@ export function useVirtualKeyboard({
     const vk = (navigator as any).virtualKeyboard;
 
     function setKeyboardInsetHeightEnv(height: number) {
-      containerRef.current?.style.setProperty(
-        '--keyboard-inset-height',
-        // Safari 26 uses a floating address bar when keyboard is open that occludes the bottom of the sheet
-        // and its height is not considered in the visual viewport. It is estimated to be 25px.
-        `${isIOSSafari26() ? (height ? height + 25 : 0) : height}px`
-      );
+      // Virtual Keyboard API is only available in secure context
+      if (window.isSecureContext) {
+        containerRef.current?.style.setProperty(
+          '--keyboard-inset-height',
+          `env(keyboard-inset-height, ${height}px)`
+        );
+      } else {
+        containerRef.current?.style.setProperty(
+          '--keyboard-inset-height',
+          // Safari 26 uses a floating address bar when keyboard is open that occludes the bottom of the sheet
+          // and its height is not considered in the visual viewport. It is estimated to be 25px.
+          `${isIOSSafari26() ? (height ? height + 25 : 0) : height}px`
+        );
+      }
     }
 
     function handleFocusIn(e: FocusEvent) {
@@ -100,6 +108,18 @@ export function useVirtualKeyboard({
           return;
         }
 
+        if (vk) {
+          const virtualKeyboardHeight = vk.boundingRect.height;
+
+          setKeyboardInsetHeightEnv(virtualKeyboardHeight);
+          setState({
+            isVisible: virtualKeyboardHeight > 0,
+            height: virtualKeyboardHeight,
+          });
+
+          return;
+        }
+
         if (vv) {
           const heightDiff = window.innerHeight - vv.height;
 
@@ -110,6 +130,8 @@ export function useVirtualKeyboard({
             setKeyboardInsetHeightEnv(0);
             setState({ isVisible: false, height: 0 });
           }
+
+          return;
         }
       }, debounceDelay);
     }
@@ -127,6 +149,7 @@ export function useVirtualKeyboard({
     if (vk) {
       currentOverlaysContent = vk.overlaysContent;
       vk.overlaysContent = true;
+      vk.addEventListener('geometrychange', updateKeyboardState);
     }
 
     return () => {
@@ -140,6 +163,7 @@ export function useVirtualKeyboard({
 
       if (vk) {
         vk.overlaysContent = currentOverlaysContent;
+        vk.removeEventListener('geometrychange', updateKeyboardState);
       }
 
       if (debounceTimer.current) {
