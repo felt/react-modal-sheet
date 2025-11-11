@@ -70,11 +70,9 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
 
     if (sheetContext.avoidKeyboard) {
       if (disableScroll) {
-        contentStyle.paddingBottom =
-          'env(keyboard-inset-height, var(--keyboard-inset-height, 0px))';
+        contentStyle.paddingBottom = 'var(--keyboard-inset-height, 0px)';
       } else {
-        scrollStyle.paddingBottom =
-          'env(keyboard-inset-height, var(--keyboard-inset-height, 0px))';
+        scrollStyle.paddingBottom = 'var(--keyboard-inset-height, 0px)';
       }
     }
 

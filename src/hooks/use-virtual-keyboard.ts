@@ -62,20 +62,12 @@ export function useVirtualKeyboard({
     const vk = (navigator as any).virtualKeyboard;
 
     function setKeyboardInsetHeightEnv(height: number) {
-      // Virtual Keyboard API is only available in secure context
-      if (window.isSecureContext) {
-        containerRef.current?.style.setProperty(
-          '--keyboard-inset-height',
-          `env(keyboard-inset-height, ${height}px)`
-        );
-      } else {
-        containerRef.current?.style.setProperty(
-          '--keyboard-inset-height',
-          // Safari 26 uses a floating address bar when keyboard is open that occludes the bottom of the sheet
-          // and its height is not considered in the visual viewport. It is estimated to be 25px.
-          `${isIOSSafari26() ? (height ? height + 25 : 0) : height}px`
-        );
-      }
+      containerRef.current?.style.setProperty(
+        '--keyboard-inset-height',
+        // Safari 26 uses a floating address bar when keyboard is open that occludes the bottom of the sheet
+        // and its height is not considered in the visual viewport. It is estimated to be 25px.
+        `${isIOSSafari26() ? (height ? height + 25 : 0) : height}px`
+      );
     }
 
     function handleFocusIn(e: FocusEvent) {
