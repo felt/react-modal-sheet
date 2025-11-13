@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { RefObject, useCallback, useEffect, useMemo, useState } from 'react';
 import { useStableCallback } from './use-stable-callback';
 import { useResizeObserver } from './use-resize-observer';
 
@@ -37,19 +37,27 @@ export function useScrollPosition() {
     }
   );
 
-  const [ref, setRef] = useState<HTMLDivElement | null>(null);
+  const [internalRef, setInternalRef] = useState<HTMLDivElement | null>(null);
 
   const { observeRef } = useResizeObserver(
-    () => ref && determineScrollPosition(ref)
+    () => internalRef && determineScrollPosition(internalRef)
   );
 
-  const mergedRef = (el: HTMLDivElement | null) => {
-    setRef(el);
-    observeRef(el);
-  };
+  const mergedRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      setInternalRef(el);
+      observeRef(el);
+    },
+    [observeRef]
+  );
+
+  const ref = useMemo(
+    () => Object.assign(mergedRef, { current: internalRef }),
+    [mergedRef, internalRef]
+  ) as RefObject<HTMLDivElement>;
 
   useEffect(() => {
-    const element = ref;
+    const element = internalRef;
     if (!element) return;
 
     let scrollTimeout: number | null = null;
@@ -79,7 +87,7 @@ export function useScrollPosition() {
       element.removeEventListener('scroll', onScroll);
       element.removeEventListener('touchstart', onTouchStart);
     };
-  }, [ref]);
+  }, [internalRef]);
 
-  return { ref: mergedRef, scrollPosition };
+  return { ref, scrollPosition };
 }
