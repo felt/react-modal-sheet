@@ -1,7 +1,7 @@
 import {
   type MotionStyle,
   motion,
-  useMotionValueEvent,
+  useMotionTemplate,
   useTransform,
 } from 'motion/react';
 import React, { forwardRef } from 'react';
@@ -21,13 +21,6 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
 
     const sheetHeightConstraint = sheetContext.sheetHeightConstraint;
 
-    useMotionValueEvent(sheetContext.yOverflow, 'change', (val) => {
-      sheetContext.sheetRef.current?.style.setProperty(
-        '--overflow',
-        val + 'px'
-      );
-    });
-
     // y might be negative due to elastic
     // for a better experience, we clamp the y value to 0
     // and use the overflow value to add padding to the bottom of the container
@@ -42,6 +35,8 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
       windowHeight - sheetHeightConstraint <= sheetContext.sheetHeight;
 
     const containerStyle: MotionStyle = {
+      // Use motion template for performant CSS variable updates
+      '--overflow': useMotionTemplate`${sheetContext.yOverflow}px`,
       ...applyStyles(styles.container, isUnstyled),
       ...style,
       ...(isUnstyled
@@ -53,7 +48,7 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
             // compensate height for the elastic behavior of the sheet
             ...(!didHitMaxHeight && { paddingBottom: sheetContext.yOverflow }),
           }),
-    };
+    } as any;
 
     const constrainedHeight = `calc(${DEFAULT_HEIGHT} - ${sheetHeightConstraint}px)`;
 
@@ -74,15 +69,21 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
     return (
       <motion.div
         {...rest}
-        ref={mergeRefs([
-          ref,
-          sheetContext.sheetRef,
-          sheetContext.sheetBoundsRef,
-        ])}
+        ref={mergeRefs([ref, sheetContext.sheetRef])}
         className={`react-modal-sheet-container ${className}`}
         style={containerStyle}
       >
-        {children}
+        <div
+          ref={sheetContext.sheetBoundsRef}
+          style={{
+            height: 'calc(100% - var(--overflow, 0px))',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: '0',
+          }}
+        >
+          {children}
+        </div>
       </motion.div>
     );
   }
