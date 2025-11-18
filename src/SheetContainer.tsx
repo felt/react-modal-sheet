@@ -50,10 +50,8 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
           }),
     } as any;
 
-    const constrainedHeight = `calc(${DEFAULT_HEIGHT} - ${sheetHeightConstraint}px)`;
-
     if (sheetContext.detent === 'default') {
-      containerStyle.height = constrainedHeight;
+      containerStyle.height = DEFAULT_HEIGHT;
     }
 
     if (sheetContext.detent === 'full') {
@@ -63,27 +61,21 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
 
     if (sheetContext.detent === 'content') {
       containerStyle.height = 'auto';
-      containerStyle.maxHeight = constrainedHeight;
+      containerStyle.maxHeight = DEFAULT_HEIGHT;
     }
 
     return (
       <motion.div
         {...rest}
-        ref={mergeRefs([ref, sheetContext.sheetRef])}
+        ref={mergeRefs([
+          ref,
+          sheetContext.sheetRef,
+          sheetContext.sheetBoundsRef,
+        ])}
         className={`react-modal-sheet-container ${className}`}
         style={containerStyle}
       >
-        <div
-          ref={sheetContext.sheetBoundsRef}
-          style={{
-            height: 'calc(100% - var(--overflow, 0px))',
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: '0',
-          }}
-        >
-          {children}
-        </div>
+        {children}
       </motion.div>
     );
   }

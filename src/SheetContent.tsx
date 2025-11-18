@@ -76,6 +76,10 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
       }
     }
 
+    if (sheetContext.detent === 'content') {
+      contentStyle.paddingBottom = `max(${contentStyle.paddingBottom}, env(safe-area-inset-bottom))`;
+    }
+
     return (
       <motion.div
         {...rest}

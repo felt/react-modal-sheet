@@ -39,9 +39,13 @@ import { isAscendingOrder } from './utils';
 export function computeSnapPoints({
   snapPointsProp,
   sheetHeight,
+  minSnapValue,
+  maxSnapValue,
 }: {
   snapPointsProp: number[];
   sheetHeight: number;
+  minSnapValue: number;
+  maxSnapValue: number;
 }): SheetSnapPoint[] {
   if (snapPointsProp[0] !== 0) {
     console.error(
@@ -69,11 +73,15 @@ export function computeSnapPoints({
 
   const snapPointValues = snapPointsProp.map((point) => {
     // Percentage values e.g. between 0.0 and 1.0
+    let value: number;
     if (point > 0 && point <= 1) {
-      return Math.round(point * sheetHeight);
+      value = Math.round(point * sheetHeight);
+    } else {
+      value = point < 0 ? sheetHeight + point : point; // negative values
     }
 
-    return point < 0 ? sheetHeight + point : point; // negative values
+    // Apply min/max constraints to the snap values
+    return Math.min(Math.max(value, minSnapValue), maxSnapValue);
   });
 
   console.assert(
@@ -91,20 +99,30 @@ export function computeSnapPoints({
     }
   });
 
-  if (!snapPointValues.includes(sheetHeight)) {
+  const constrainedSheetHeight = Math.min(
+    Math.max(sheetHeight, minSnapValue),
+    maxSnapValue
+  );
+  if (!snapPointValues.includes(constrainedSheetHeight)) {
     console.warn(
       'Snap points do not include the sheet height.' +
         'Please include `1` as the last snap point or it will be included automatically.' +
         'This is to ensure the sheet can be fully opened.'
     );
-    snapPointValues.push(sheetHeight);
+    snapPointValues.push(constrainedSheetHeight);
   }
 
-  return snapPointValues.map((snap, index) => ({
-    snapIndex: index,
-    snapValue: snap, // Absolute value from the bottom of the sheet
-    snapValueY: sheetHeight - snap, // Y value is inverted as `y = 0` means sheet is at the top
-  }));
+  const minSnapValueY = sheetHeight - maxSnapValue;
+  const maxSnapValueY = sheetHeight - minSnapValue;
+
+  return snapPointValues.map((snap, index) => {
+    const snapValueY = sheetHeight - snap;
+    return {
+      snapIndex: index,
+      snapValue: snap, // Absolute value from the bottom of the sheet
+      snapValueY: Math.min(Math.max(snapValueY, minSnapValueY), maxSnapValueY), // Y value is inverted as `y = 0` means sheet is at the top
+    };
+  });
 }
 
 function findClosestSnapPoint({

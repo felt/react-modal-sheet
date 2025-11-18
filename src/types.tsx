@@ -9,7 +9,6 @@ import {
 } from 'react';
 
 import {
-  Axis,
   type DragHandler,
   type EasingDefinition,
   type MotionValue,
@@ -25,7 +24,10 @@ type CommonProps = {
 
 type MotionProps = ComponentPropsWithoutRef<typeof motion.div>;
 
-type MotionCommonProps = Omit<MotionProps, 'initial' | 'animate' | 'exit'>;
+type MotionCommonProps = Omit<
+  MotionProps,
+  'initial' | 'animate' | 'exit' | 'dragConstraints'
+>;
 
 export interface SheetTweenConfig {
   ease: EasingDefinition;
@@ -43,7 +45,7 @@ export type SheetProps = {
   disableScrollLocking?: boolean;
   dragCloseThreshold?: number;
   dragVelocityThreshold?: number;
-  dragConstraints?: Partial<Axis>;
+  safeSpace?: Partial<{ top: number; bottom: number }>; // pixels
   initialSnap?: number; // index of snap points array
   isOpen: boolean;
   modalEffectRootId?: string;

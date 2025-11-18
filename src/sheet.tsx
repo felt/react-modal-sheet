@@ -42,6 +42,7 @@ import {
 import { styles } from './styles';
 import { type SheetContextType, type SheetProps } from './types';
 import { applyConstraints, applyStyles, waitForElement } from './utils';
+import { useSafeAreaInsets } from './hooks/use-safe-area-insets';
 
 export const Sheet = forwardRef<any, SheetProps>(
   (
@@ -65,7 +66,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       style,
       tweenConfig = DEFAULT_TWEEN_CONFIG,
       unstyled = false,
-      dragConstraints: dragConstraintsProp,
+      safeSpace: safeSpaceProp,
       onOpenStart,
       onOpenEnd,
       onClose,
@@ -80,31 +81,50 @@ export const Sheet = forwardRef<any, SheetProps>(
     },
     ref
   ) => {
+    const { windowHeight } = useDimensions();
+    const safeAreaInsets = useSafeAreaInsets();
+
     const [sheetBoundsRef, sheetBounds] = useMeasure();
     const sheetRef = useRef<HTMLDivElement>(null);
     const sheetHeight = Math.round(sheetBounds.height);
     const [currentSnap, setCurrentSnap] = useState(initialSnap);
-    const snapPoints = useMemo(() => {
-      return snapPointsProp && sheetHeight > 0
-        ? computeSnapPoints({ sheetHeight, snapPointsProp })
-        : [];
-    }, [sheetHeight, snapPointsProp]);
 
-    // for default & content detents, the sheet height is constrained instead of the drag
-    const sheetHeightConstraint =
+    const safeSpaceTop =
+      detent === 'full' ? 0 : (safeSpaceProp?.top ?? DEFAULT_TOP_CONSTRAINT);
+
+    const safeSpaceBottom =
+      (safeSpaceProp?.bottom ?? 0) + safeAreaInsets.bottom;
+
+    const minSnapValue = safeSpaceBottom;
+    const maxSnapValueOnDefaultDetent =
+      windowHeight - safeSpaceTop - safeAreaInsets.top;
+    const maxSnapValue =
       detent === 'full'
-        ? 0
-        : (dragConstraintsProp?.min ?? DEFAULT_TOP_CONSTRAINT);
-
-    const dragBottomConstraint =
-      (dragConstraintsProp?.max ?? Infinity) - sheetHeightConstraint;
+        ? windowHeight
+        : detent === 'content'
+          ? Math.min(sheetHeight, maxSnapValueOnDefaultDetent)
+          : maxSnapValueOnDefaultDetent;
 
     const dragConstraints: Axis = {
-      min: 0, // top constraint (applied through sheet height instead)
-      max: dragBottomConstraint, // bottom constraint
+      min:
+        detent === 'full' ||
+        (detent === 'content' && sheetHeight < windowHeight)
+          ? 0
+          : safeSpaceTop + safeAreaInsets.top, // top constraint (applied through sheet height instead)
+      max: windowHeight - safeSpaceBottom, // bottom constraint
     };
 
-    const { windowHeight } = useDimensions();
+    const snapPoints = useMemo(() => {
+      return snapPointsProp && sheetHeight > 0
+        ? computeSnapPoints({
+            sheetHeight,
+            snapPointsProp,
+            minSnapValue,
+            maxSnapValue,
+          })
+        : [];
+    }, [sheetHeight, snapPointsProp, minSnapValue, maxSnapValue]);
+
     const closedY = sheetHeight > 0 ? sheetHeight : windowHeight;
     const y = useMotionValue(closedY);
     const yUnconstrainedRef = useRef<number | undefined>(undefined);
@@ -181,6 +201,11 @@ export const Sheet = forwardRef<any, SheetProps>(
         onComplete: () => updateSnap(snapIndex),
       });
     });
+
+    useEffect(() => {
+      if (currentSnap === undefined) return;
+      snapTo(currentSnap);
+    }, [snapPoints]);
 
     const blurActiveInput = useStableCallback(() => {
       // Find focused input inside the sheet and blur it when dragging starts
@@ -446,9 +471,19 @@ export const Sheet = forwardRef<any, SheetProps>(
             const initialSnapPoint =
               initialSnap !== undefined ? getSnapPoint(initialSnap) : null;
 
-            const yTo = initialSnapPoint?.snapValueY ?? 0;
+            if (!initialSnapPoint) {
+              console.warn(
+                'No initial snap point found',
+                initialSnap,
+                snapPoints
+              );
+              clearYListeners();
+              handleOpenEnd();
+              resolve();
+              return;
+            }
 
-            animate(y, yTo, animationOptions);
+            animate(y, initialSnapPoint.snapValueY, animationOptions);
           });
         });
       },
@@ -512,7 +547,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       y,
       yOverflow,
       sheetHeight,
-      sheetHeightConstraint,
+      sheetHeightConstraint: maxSnapValue,
     };
 
     const sheet = (

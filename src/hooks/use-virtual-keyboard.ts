@@ -66,7 +66,7 @@ export function useVirtualKeyboard({
         '--keyboard-inset-height',
         // Safari 26 uses a floating address bar when keyboard is open that occludes the bottom of the sheet
         // and its height is not considered in the visual viewport. It is estimated to be 25px.
-        `${isIOSSafari26() ? (height ? height + 25 : 0) : height}px`
+        `${isIOSSafari26() ? (height ? height + 10 : 0) : height}px`
       );
     }
 

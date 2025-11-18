@@ -2,8 +2,7 @@ import type { SheetTweenConfig } from './types';
 
 export const DEFAULT_TOP_CONSTRAINT = 34;
 
-export const DEFAULT_HEIGHT =
-  'calc(var(--overflow, 0px) + 100% - env(safe-area-inset-top))';
+export const DEFAULT_HEIGHT = 'calc(var(--overflow, 0px) + 100%)';
 
 export const IS_SSR = typeof window === 'undefined';
 
