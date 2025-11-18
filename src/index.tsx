@@ -8,6 +8,7 @@ import { SheetHeader } from './SheetHeader';
 import { Sheet as SheetBase } from './sheet';
 import type { SheetCompound, SheetSnapPoint } from './types';
 import { useScrollPosition } from './hooks/use-scroll-position';
+import { useSafeAreaInsets } from './hooks/use-safe-area-insets';
 import { RefObject } from 'react';
 
 export interface SheetRef {
@@ -30,7 +31,7 @@ export const Sheet: SheetCompound = Object.assign(SheetBase, {
   Backdrop: SheetBackdrop,
 });
 
-export { useScrollPosition };
+export { useScrollPosition, useSafeAreaInsets };
 
 // Export types
 export type {
