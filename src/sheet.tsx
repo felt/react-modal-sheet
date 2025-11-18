@@ -202,11 +202,6 @@ export const Sheet = forwardRef<any, SheetProps>(
       });
     });
 
-    useEffect(() => {
-      if (currentSnap === undefined) return;
-      snapTo(currentSnap);
-    }, [snapPoints]);
-
     const blurActiveInput = useStableCallback(() => {
       // Find focused input inside the sheet and blur it when dragging starts
       // to prevent a weird ghost caret "bug" on mobile
@@ -409,6 +404,17 @@ export const Sheet = forwardRef<any, SheetProps>(
       if (!keyboard.isKeyboardOpen) return;
       return handleKeyboardOpen();
     }, [keyboard.isKeyboardOpen]);
+
+    // keep the sheet at the current snap point if it changes
+    const currentSnapPointY = currentSnap
+      ? getSnapPoint(currentSnap)?.snapValueY
+      : null;
+    useEffect(() => {
+      if (currentSnapPointY === undefined) return;
+      if (currentSnapPointY === null) return;
+      if (openStateRef.current !== 'open') return;
+      animate(y, currentSnapPointY);
+    }, [currentSnapPointY]);
 
     /**
      * Motion should handle body scroll locking but it's not working properly on iOS.
