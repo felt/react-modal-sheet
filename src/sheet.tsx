@@ -507,7 +507,11 @@ export const Sheet = forwardRef<any, SheetProps>(
           onCloseStart?.();
 
           const handleCloseEnd = () => {
-            onCloseEnd?.();
+            if (onCloseEnd) {
+              // waiting a frame to ensure the sheet is fully closed
+              // otherwise it was causing some issue with AnimatePresence's safeToRemove
+              requestAnimationFrame(() => onCloseEnd());
+            }
             openStateRef.current = 'closed';
           };
 
