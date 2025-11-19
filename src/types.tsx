@@ -78,6 +78,7 @@ export type SheetContentProps = MotionCommonProps &
     disableDrag?: boolean | ((args: SheetStateInfo) => boolean);
     disableScroll?: boolean | ((args: SheetStateInfo) => boolean);
     scrollRef?: RefObject<HTMLDivElement | null>;
+    avoidKeyboard?: boolean;
   };
 
 export type SheetBackdropProps = MotionProps &
@@ -122,7 +123,8 @@ export interface SheetContextType {
   y: MotionValue<any>;
   yOverflow: MotionValue<number>;
   sheetHeight: number;
-  sheetHeightConstraint: number;
+  safeSpaceTop: number;
+  safeSpaceBottom: number;
 }
 
 export interface SheetScrollerContextType {

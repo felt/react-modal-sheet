@@ -19,8 +19,6 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
 
     const isUnstyled = unstyled ?? sheetContext.unstyled;
 
-    const sheetHeightConstraint = sheetContext.sheetHeightConstraint;
-
     // y might be negative due to elastic
     // for a better experience, we clamp the y value to 0
     // and use the overflow value to add padding to the bottom of the container
@@ -32,7 +30,7 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
 
     const { windowHeight } = useDimensions();
     const didHitMaxHeight =
-      windowHeight - sheetHeightConstraint <= sheetContext.sheetHeight;
+      windowHeight - sheetContext.safeSpaceTop <= sheetContext.sheetHeight;
 
     const containerStyle: MotionStyle = {
       // Use motion template for performant CSS variable updates
@@ -61,7 +59,7 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
 
     if (sheetContext.detent === 'content') {
       containerStyle.height = 'auto';
-      containerStyle.maxHeight = DEFAULT_HEIGHT;
+      containerStyle.maxHeight = `calc(${DEFAULT_HEIGHT} - ${sheetContext.safeSpaceTop}px)`;
     }
 
     return (

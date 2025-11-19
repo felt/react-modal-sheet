@@ -18,6 +18,7 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
       className = '',
       scrollRef: scrollRefProp = null,
       unstyled,
+      avoidKeyboard: avoidKeyboardProp,
       ...rest
     },
     ref
@@ -68,16 +69,14 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
 
     const shouldRenderScroller = disableScrollProp === false || !disableScroll;
 
-    if (sheetContext.avoidKeyboard) {
+    const avoidKeyboard = avoidKeyboardProp ?? sheetContext.avoidKeyboard;
+
+    if (avoidKeyboard) {
       if (disableScroll) {
         contentStyle.paddingBottom = 'var(--keyboard-inset-height, 0px)';
       } else {
         scrollStyle.paddingBottom = 'var(--keyboard-inset-height, 0px)';
       }
-    }
-
-    if (sheetContext.detent === 'content') {
-      contentStyle.paddingBottom = `max(${contentStyle.paddingBottom}, env(safe-area-inset-bottom))`;
     }
 
     return (

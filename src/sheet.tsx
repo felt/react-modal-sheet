@@ -92,26 +92,23 @@ export const Sheet = forwardRef<any, SheetProps>(
     const safeSpaceTop =
       detent === 'full' ? 0 : (safeSpaceProp?.top ?? DEFAULT_TOP_CONSTRAINT);
 
-    const safeSpaceBottom =
-      (safeSpaceProp?.bottom ?? 0) + safeAreaInsets.bottom;
+    const safeSpaceBottom = safeSpaceProp?.bottom ?? 0;
 
-    const minSnapValue = safeSpaceBottom;
+    const minSnapValue =
+      safeSpaceBottom + (detent === 'default' ? safeAreaInsets.bottom : 0);
     const maxSnapValueOnDefaultDetent =
       windowHeight - safeSpaceTop - safeAreaInsets.top;
     const maxSnapValue =
-      detent === 'full'
+      detent === 'full' || detent === 'content'
         ? windowHeight
-        : detent === 'content'
-          ? Math.min(sheetHeight, maxSnapValueOnDefaultDetent)
-          : maxSnapValueOnDefaultDetent;
+        : maxSnapValueOnDefaultDetent;
 
     const dragConstraints: Axis = {
       min:
-        detent === 'full' ||
-        (detent === 'content' && sheetHeight < windowHeight)
+        detent === 'full' || detent === 'content'
           ? 0
           : safeSpaceTop + safeAreaInsets.top, // top constraint (applied through sheet height instead)
-      max: windowHeight - safeSpaceBottom, // bottom constraint
+      max: windowHeight - safeSpaceBottom - safeAreaInsets.bottom, // bottom constraint
     };
 
     const snapPoints = useMemo(() => {
@@ -553,7 +550,8 @@ export const Sheet = forwardRef<any, SheetProps>(
       y,
       yOverflow,
       sheetHeight,
-      sheetHeightConstraint: maxSnapValue,
+      safeSpaceTop: safeSpaceTop + safeAreaInsets.top,
+      safeSpaceBottom: safeSpaceBottom + safeAreaInsets.bottom,
     };
 
     const sheet = (
