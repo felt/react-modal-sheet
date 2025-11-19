@@ -176,7 +176,7 @@ export const Sheet = forwardRef<any, SheetProps>(
     });
 
     const snapTo = useStableCallback(
-      async (snapIndex: number, instant: boolean = false) => {
+      async (snapIndex: number, options?: { immediate?: boolean }) => {
         if (!snapPointsProp) {
           console.warn('Snapping is not possible without `snapPoints` prop.');
           return;
@@ -194,7 +194,7 @@ export const Sheet = forwardRef<any, SheetProps>(
           return;
         }
 
-        if (instant) {
+        if (options?.immediate) {
           y.set(snapPoint.snapValueY);
           updateSnap(snapIndex);
           return;
@@ -392,11 +392,12 @@ export const Sheet = forwardRef<any, SheetProps>(
         if (currentSnapPoint === lastSnapPointIndex) return;
 
         // fully open the sheet
-        snapTo(lastSnapPointIndex, true);
+        snapTo(lastSnapPointIndex, { immediate: true });
 
         // restore the previous snap point once the keyboard is closed
         return () => {
-          currentSnapPoint !== undefined && snapTo(currentSnapPoint, true);
+          currentSnapPoint !== undefined &&
+            snapTo(currentSnapPoint, { immediate: true });
         };
       }
 

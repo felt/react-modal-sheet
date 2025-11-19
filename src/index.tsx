@@ -15,7 +15,7 @@ export interface SheetRef {
   y: MotionValue<number>;
   yInverted: MotionValue<number>;
   height: number;
-  snapTo: (index: number) => Promise<void>;
+  snapTo: (index: number, options?: { immediate?: boolean }) => Promise<void>;
   currentSnap: number | undefined;
   getSnapPoint: (index: number) => SheetSnapPoint | null;
   snapPoints: SheetSnapPoint[];
