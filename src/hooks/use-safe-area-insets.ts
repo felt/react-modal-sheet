@@ -21,7 +21,6 @@ export function useSafeAreaInsets() {
 
     return () => {
       observer.disconnect();
-      document.body.removeChild(safeAreaDetector);
     };
   }, []);
 
