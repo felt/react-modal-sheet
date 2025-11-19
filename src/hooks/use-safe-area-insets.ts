@@ -28,9 +28,8 @@ export function useSafeAreaInsets() {
   return insets;
 }
 
-function createSafeAreaDetector() {
-  const safeAreaDetector = document.createElement('div');
-  safeAreaDetector.style.cssText = `
+const safeAreaDetectorId = 'react-modal-sheet-safe-area-detector';
+const safeAreaDetectorStyle = `
   position: fixed;
   top: -1000px;
   left: -1000px;
@@ -44,6 +43,14 @@ function createSafeAreaDetector() {
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
 `;
+
+function createSafeAreaDetector() {
+  let safeAreaDetector = document.getElementById(safeAreaDetectorId);
+  if (safeAreaDetector) return safeAreaDetector;
+
+  safeAreaDetector = document.createElement('div');
+  safeAreaDetector.id = safeAreaDetectorId;
+  safeAreaDetector.style.cssText = safeAreaDetectorStyle;
   document.body.appendChild(safeAreaDetector);
   return safeAreaDetector;
 }
