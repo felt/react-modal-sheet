@@ -175,29 +175,37 @@ export const Sheet = forwardRef<any, SheetProps>(
       return null;
     });
 
-    const snapTo = useStableCallback(async (snapIndex: number) => {
-      if (!snapPointsProp) {
-        console.warn('Snapping is not possible without `snapPoints` prop.');
-        return;
+    const snapTo = useStableCallback(
+      async (snapIndex: number, instant: boolean = false) => {
+        if (!snapPointsProp) {
+          console.warn('Snapping is not possible without `snapPoints` prop.');
+          return;
+        }
+
+        const snapPoint = getSnapPoint(snapIndex);
+
+        if (snapPoint === null) {
+          console.warn(`Invalid snap index ${snapIndex}.`);
+          return;
+        }
+
+        if (snapIndex === 0) {
+          onClose();
+          return;
+        }
+
+        if (instant) {
+          y.set(snapPoint.snapValueY);
+          updateSnap(snapIndex);
+          return;
+        }
+
+        await animate(y, snapPoint.snapValueY, {
+          ...animationOptions,
+          onComplete: () => updateSnap(snapIndex),
+        });
       }
-
-      const snapPoint = getSnapPoint(snapIndex);
-
-      if (snapPoint === null) {
-        console.warn(`Invalid snap index ${snapIndex}.`);
-        return;
-      }
-
-      if (snapIndex === 0) {
-        onClose();
-        return;
-      }
-
-      await animate(y, snapPoint.snapValueY, {
-        ...animationOptions,
-        onComplete: () => updateSnap(snapIndex),
-      });
-    });
+    );
 
     const blurActiveInput = useStableCallback(() => {
       // Find focused input inside the sheet and blur it when dragging starts
@@ -384,11 +392,11 @@ export const Sheet = forwardRef<any, SheetProps>(
         if (currentSnapPoint === lastSnapPointIndex) return;
 
         // fully open the sheet
-        snapTo(lastSnapPointIndex);
+        snapTo(lastSnapPointIndex, true);
 
         // restore the previous snap point once the keyboard is closed
         return () => {
-          currentSnapPoint !== undefined && snapTo(currentSnapPoint);
+          currentSnapPoint !== undefined && snapTo(currentSnapPoint, true);
         };
       }
 
