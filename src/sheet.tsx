@@ -94,8 +94,9 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     const safeSpaceBottom = safeSpaceProp?.bottom ?? 0;
 
-    const minSnapValue =
-      safeSpaceBottom + (detent === 'default' ? safeAreaInsets.bottom : 0);
+    const minSnapValue = safeSpaceBottom
+      ? safeSpaceBottom + safeAreaInsets.bottom
+      : 0;
     const maxSnapValueOnDefaultDetent =
       windowHeight - safeSpaceTop - safeAreaInsets.top;
     const maxSnapValue =
