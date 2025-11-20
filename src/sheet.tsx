@@ -77,6 +77,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       onDragStart: onDragStartProp,
       onDragEnd: onDragEndProp,
       onKeyboardOpen,
+      skipOpenAnimation = false,
       ...rest
     },
     ref
@@ -475,12 +476,7 @@ export const Sheet = forwardRef<any, SheetProps>(
             })
           );
 
-          /**
-           * This is not very React-y but we need to wait for the sheet
-           * but we need to wait for the sheet to be rendered and visible
-           * before we can measure it and animate it to the initial snap point.
-           */
-          waitForElement('react-modal-sheet-container').then(() => {
+          const doWhenSheetReady = () => {
             const initialSnapPoint =
               initialSnap !== undefined ? getSnapPoint(initialSnap) : null;
 
@@ -496,8 +492,27 @@ export const Sheet = forwardRef<any, SheetProps>(
               return;
             }
 
-            animate(y, initialSnapPoint.snapValueY, animationOptions);
-          });
+            if (skipOpenAnimation) {
+              y.set(initialSnapPoint.snapValueY);
+              handleOpenEnd();
+              resolve();
+            } else {
+              animate(y, initialSnapPoint.snapValueY, animationOptions);
+            }
+          };
+
+          /**
+           * This is not very React-y but we need to wait for the sheet
+           * but we need to wait for the sheet to be rendered and visible
+           * before we can measure it and animate it to the initial snap point.
+           */
+          if (detent === 'content') {
+            waitForElement('react-modal-sheet-container').then(
+              doWhenSheetReady
+            );
+          } else {
+            doWhenSheetReady();
+          }
         });
       },
       onClosing: () => {

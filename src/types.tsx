@@ -54,6 +54,7 @@ export type SheetProps = {
   prefersReducedMotion?: boolean;
   snapPoints?: number[];
   tweenConfig?: SheetTweenConfig;
+  skipOpenAnimation?: boolean;
   onClose: () => void;
   onCloseEnd?: () => void;
   onCloseStart?: () => void;
