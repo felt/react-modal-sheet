@@ -24,7 +24,10 @@ type CommonProps = {
 
 type MotionProps = ComponentPropsWithoutRef<typeof motion.div>;
 
-type MotionCommonProps = Omit<MotionProps, 'initial' | 'animate' | 'exit'>;
+type MotionCommonProps = Omit<
+  MotionProps,
+  'initial' | 'animate' | 'exit' | 'dragConstraints'
+>;
 
 export interface SheetTweenConfig {
   ease: EasingDefinition;
@@ -34,6 +37,7 @@ export interface SheetTweenConfig {
 export type SheetProps = {
   unstyled?: boolean;
   avoidKeyboard?: boolean;
+  onKeyboardOpen?: (() => VoidFunction) | (() => void);
   children: ReactNode;
   detent?: SheetDetent;
   disableDismiss?: boolean;
@@ -41,6 +45,7 @@ export type SheetProps = {
   disableScrollLocking?: boolean;
   dragCloseThreshold?: number;
   dragVelocityThreshold?: number;
+  safeSpace?: Partial<{ top: number; bottom: number }>; // pixels
   initialSnap?: number; // index of snap points array
   isOpen: boolean;
   modalEffectRootId?: string;
@@ -49,6 +54,7 @@ export type SheetProps = {
   prefersReducedMotion?: boolean;
   snapPoints?: number[];
   tweenConfig?: SheetTweenConfig;
+  skipOpenAnimation?: boolean;
   onClose: () => void;
   onCloseEnd?: () => void;
   onCloseStart?: () => void;
@@ -73,6 +79,7 @@ export type SheetContentProps = MotionCommonProps &
     disableDrag?: boolean | ((args: SheetStateInfo) => boolean);
     disableScroll?: boolean | ((args: SheetStateInfo) => boolean);
     scrollRef?: RefObject<HTMLDivElement | null>;
+    avoidKeyboard?: boolean;
   };
 
 export type SheetBackdropProps = MotionProps &
@@ -115,6 +122,10 @@ export interface SheetContextType {
   sheetRef: RefObject<any>;
   unstyled: boolean;
   y: MotionValue<any>;
+  yOverflow: MotionValue<number>;
+  sheetHeight: number;
+  safeSpaceTop: number;
+  safeSpaceBottom: number;
 }
 
 export interface SheetScrollerContextType {

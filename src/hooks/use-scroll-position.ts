@@ -1,30 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
+import { RefObject, useCallback, useEffect, useMemo, useState } from 'react';
+import { useStableCallback } from './use-stable-callback';
+import { useResizeObserver } from './use-resize-observer';
 
 export function useScrollPosition() {
-  const ref = useRef<HTMLDivElement>(null);
   const [scrollPosition, setScrollPosition] = useState<
     'top' | 'bottom' | 'middle' | undefined
   >(undefined);
 
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-
-    let scrollTimeout: number | null = null;
-
-    function determineScrollPosition(element: HTMLDivElement) {
+  const determineScrollPosition = useStableCallback(
+    (element: HTMLDivElement) => {
       const { scrollTop, scrollHeight, clientHeight } = element;
       const isScrollable = scrollHeight > clientHeight;
 
       if (!isScrollable) {
         // Reset scroll position if the content is not scrollable anymore
-        if (scrollPosition) setScrollPosition(undefined);
+        setScrollPosition(undefined);
         return;
       }
 
       const isAtTop = scrollTop <= 0;
       const isAtBottom =
-        Math.ceil(scrollHeight) - Math.ceil(scrollTop) ===
+        Math.ceil(scrollHeight) - Math.ceil(scrollTop) <=
         Math.ceil(clientHeight);
 
       let position: 'top' | 'bottom' | 'middle';
@@ -37,9 +33,34 @@ export function useScrollPosition() {
         position = 'middle';
       }
 
-      if (position === scrollPosition) return;
       setScrollPosition(position);
     }
+  );
+
+  const [internalRef, setInternalRef] = useState<HTMLDivElement | null>(null);
+
+  const { observeRef } = useResizeObserver(
+    () => internalRef && determineScrollPosition(internalRef)
+  );
+
+  const mergedRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      setInternalRef(el);
+      observeRef(el);
+    },
+    [observeRef]
+  );
+
+  const ref = useMemo(
+    () => Object.assign(mergedRef, { current: internalRef }),
+    [mergedRef, internalRef]
+  ) as RefObject<HTMLDivElement>;
+
+  useEffect(() => {
+    const element = internalRef;
+    if (!element) return;
+
+    let scrollTimeout: number | null = null;
 
     function onScroll(event: Event) {
       if (event.currentTarget instanceof HTMLDivElement) {
@@ -66,7 +87,7 @@ export function useScrollPosition() {
       element.removeEventListener('scroll', onScroll);
       element.removeEventListener('touchstart', onTouchStart);
     };
-  }, []);
+  }, [internalRef]);
 
   return { ref, scrollPosition };
 }
