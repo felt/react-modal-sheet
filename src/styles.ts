@@ -23,6 +23,7 @@ export const styles = {
       height: '100%',
       touchAction: 'none',
       userSelect: 'none',
+      WebkitUserSelect: 'none',
     },
     decorative: {
       backgroundColor: 'rgba(0, 0, 0, 0.2)',
