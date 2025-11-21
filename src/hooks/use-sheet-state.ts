@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStableCallback } from './use-stable-callback';
 
 type SheetState = 'closed' | 'opening' | 'open' | 'closing';
@@ -19,16 +19,21 @@ export function useSheetState({
   onClosing: _onClosing,
 }: UseSheetStatesProps) {
   const [state, setState] = useState<SheetState>(isOpen ? 'opening' : 'closed');
+  const abortControllerRef = useRef<AbortController | null>(null);
   const onClosed = useStableCallback(() => _onClosed?.());
   const onOpening = useStableCallback(() => _onOpening?.());
   const onOpen = useStableCallback(() => _onOpen?.());
   const onClosing = useStableCallback(() => _onClosing?.());
 
   useEffect(() => {
+    abortControllerRef.current?.abort();
     setState(isOpen ? 'opening' : 'closing');
   }, [isOpen]);
 
   useEffect(() => {
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     async function handle() {
       switch (state) {
         case 'closed':
@@ -37,7 +42,7 @@ export function useSheetState({
 
         case 'opening':
           await onOpening?.();
-          setState('open');
+          if (!abortController.signal.aborted) setState('open');
           break;
 
         case 'open':
@@ -46,7 +51,7 @@ export function useSheetState({
 
         case 'closing':
           await onClosing?.();
-          setState('closed');
+          if (!abortController.signal.aborted) setState('closed');
           break;
       }
     }
@@ -55,6 +60,10 @@ export function useSheetState({
         console.error('Internal sheet state error:', error);
       }
     });
+
+    return () => {
+      abortController.abort();
+    };
   }, [state]);
 
   return state;

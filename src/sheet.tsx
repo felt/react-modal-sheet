@@ -87,7 +87,10 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     const [sheetBoundsRef, sheetBounds] = useMeasure();
     const sheetRef = useRef<HTMLDivElement>(null);
-    const sheetHeight = Math.round(sheetBounds.height);
+    const sheetHeight =
+      detent === 'default' || detent === 'full'
+        ? windowHeight
+        : Math.round(sheetBounds.height);
     const [currentSnap, setCurrentSnap] = useState(initialSnap);
 
     const safeSpaceTop =
@@ -179,6 +182,8 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     const snapTo = useStableCallback(
       async (snapIndex: number, options?: { immediate?: boolean }) => {
+        if (openStateRef.current !== 'open') return;
+
         if (!snapPointsProp) {
           console.warn('Snapping is not possible without `snapPoints` prop.');
           return;
@@ -349,7 +354,9 @@ export const Sheet = forwardRef<any, SheetProps>(
       isOpen ? 'opening' : 'closed'
     );
 
-    const currentSnapPoint = currentSnap ? getSnapPoint(currentSnap) : null;
+    const currentSnapPoint = currentSnap
+      ? (snapPoints[currentSnap] ?? null)
+      : null;
 
     useImperativeHandle(
       ref,
@@ -415,7 +422,7 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     // keep the sheet at the current snap point if it changes
     const currentSnapPointY = currentSnap
-      ? getSnapPoint(currentSnap)?.snapValueY
+      ? snapPoints[currentSnap]?.snapValueY
       : null;
     useEffect(() => {
       if (currentSnapPointY === undefined) return;
@@ -440,7 +447,7 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     const state = useSheetState({
       isOpen,
-      onOpen: () => {
+      onOpening: () => {
         return new Promise((resolve, reject) => {
           clearYListeners();
 
@@ -457,25 +464,6 @@ export const Sheet = forwardRef<any, SheetProps>(
             openStateRef.current = 'open';
           };
 
-          yListenersRef.current.push(
-            y.on('animationCancel', () => {
-              clearYListeners();
-
-              if (openStateRef.current === 'opening') {
-                handleOpenEnd();
-                resolve();
-              } else {
-                reject('stopped opening');
-              }
-            }),
-            y.on('animationComplete', () => {
-              clearYListeners();
-
-              handleOpenEnd();
-              resolve();
-            })
-          );
-
           const doWhenSheetReady = () => {
             const initialSnapPoint =
               initialSnap !== undefined ? getSnapPoint(initialSnap) : null;
@@ -486,17 +474,30 @@ export const Sheet = forwardRef<any, SheetProps>(
                 initialSnap,
                 snapPoints
               );
-              clearYListeners();
+            }
+
+            if (skipOpenAnimation || !initialSnapPoint) {
               handleOpenEnd();
               resolve();
-              return;
             }
+
+            if (!initialSnapPoint) return;
 
             if (skipOpenAnimation) {
               y.set(initialSnapPoint.snapValueY);
-              handleOpenEnd();
-              resolve();
             } else {
+              yListenersRef.current.push(
+                y.on('animationCancel', () => {
+                  clearYListeners();
+                  reject('stopped opening');
+                }),
+                y.on('animationComplete', () => {
+                  clearYListeners();
+                  handleOpenEnd();
+                  resolve();
+                })
+              );
+
               animate(y, initialSnapPoint.snapValueY, animationOptions);
             }
           };
