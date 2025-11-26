@@ -8,7 +8,7 @@ export const styles = {
       bottom: 0,
       left: 0,
       right: 0,
-      overflow: 'hidden',
+      overflow: 'clip',
       pointerEvents: 'none',
     },
     decorative: {},
@@ -23,6 +23,7 @@ export const styles = {
       height: '100%',
       touchAction: 'none',
       userSelect: 'none',
+      WebkitUserSelect: 'none',
     },
     decorative: {
       backgroundColor: 'rgba(0, 0, 0, 0.2)',
