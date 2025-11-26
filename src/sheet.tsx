@@ -182,12 +182,12 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     const snapTo = useStableCallback(
       async (snapIndex: number, options?: { immediate?: boolean }) => {
-        if (openStateRef.current !== 'open') return;
-
         if (!snapPointsProp) {
           console.warn('Snapping is not possible without `snapPoints` prop.');
           return;
         }
+
+        if (currentSnap === snapIndex) return;
 
         const snapPoint = getSnapPoint(snapIndex);
 
@@ -474,22 +474,25 @@ export const Sheet = forwardRef<any, SheetProps>(
                 initialSnap,
                 snapPoints
               );
-            }
-
-            if (skipOpenAnimation || !initialSnapPoint) {
               handleOpenEnd();
               resolve();
+              return;
             }
 
-            if (!initialSnapPoint) return;
-
             if (skipOpenAnimation) {
+              handleOpenEnd();
+              resolve();
               y.set(initialSnapPoint.snapValueY);
             } else {
               yListenersRef.current.push(
                 y.on('animationCancel', () => {
                   clearYListeners();
-                  reject('stopped opening');
+                  if (openStateRef.current === 'opening') {
+                    handleOpenEnd();
+                    resolve();
+                  } else {
+                    reject('stopped opening');
+                  }
                 }),
                 y.on('animationComplete', () => {
                   clearYListeners();
