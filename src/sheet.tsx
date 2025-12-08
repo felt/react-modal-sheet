@@ -33,6 +33,7 @@ import { useModalEffect } from './hooks/use-modal-effect';
 import { usePreventScroll } from './hooks/use-prevent-scroll';
 import { useSheetState } from './hooks/use-sheet-state';
 import { useStableCallback } from './hooks/use-stable-callback';
+import { useScrollToFocusedInput } from './hooks/use-scroll-to-focused-input';
 import { useVirtualKeyboard } from './hooks/use-virtual-keyboard';
 import {
   computeSnapPoints,
@@ -419,6 +420,13 @@ export const Sheet = forwardRef<any, SheetProps>(
       if (!keyboard.isKeyboardOpen) return;
       return handleKeyboardOpen();
     }, [keyboard.isKeyboardOpen]);
+
+    useScrollToFocusedInput({
+      containerRef: sheetRef,
+      isKeyboardOpen: keyboard.isKeyboardOpen,
+      keyboardHeight: keyboard.keyboardHeight,
+      bottomOffset: safeAreaInsets.bottom + safeSpaceBottom,
+    });
 
     // keep the sheet at the current snap point if it changes
     const currentSnapPointY = currentSnap
