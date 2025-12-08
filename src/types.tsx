@@ -1,4 +1,5 @@
 import {
+  type Ref,
   type ComponentPropsWithoutRef,
   type ForwardRefExoticComponent,
   type FunctionComponent,
@@ -66,6 +67,8 @@ export type SheetProps = {
 export type SheetContainerProps = MotionCommonProps &
   CommonProps & {
     children: ReactNode;
+    renderAbove?: ReactNode;
+    positionerRef?: Ref<HTMLDivElement>;
   };
 
 export type SheetHeaderProps = MotionCommonProps &

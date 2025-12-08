@@ -31,16 +31,25 @@ export const styles = {
       WebkitTapHighlightColor: 'transparent',
     },
   },
-  container: {
+  positioner: {
     base: {
       zIndex: 2,
       position: 'absolute',
       left: 0,
       bottom: 0,
-      width: '100%',
-      pointerEvents: 'auto',
       display: 'flex',
       flexDirection: 'column',
+      width: '100%',
+      pointerEvents: 'none',
+    },
+    decorative: {},
+  },
+  container: {
+    base: {
+      display: 'flex',
+      flexDirection: 'column',
+      pointerEvents: 'auto',
+      flex: 1,
     },
     decorative: {
       backgroundColor: '#fff',
