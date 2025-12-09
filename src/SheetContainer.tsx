@@ -97,22 +97,42 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
       ...style,
       // compensate height for the elastic behavior of the sheet
       ...(!didHitMaxHeight && { paddingBottom: sheetContext.yOverflow }),
-    } as any;
+      // Ensure the container sits above the "above" element
+      position: 'relative',
+      zIndex: 1,
+    };
+
+    // Animate the translateY of the above element so it slides down behind the sheet as it closes
+    // The minimum y value (fully open) depends on the detent type
+    const minY =
+      sheetContext.detent === 'full' || sheetContext.detent === 'content'
+        ? 0
+        : sheetContext.safeSpaceTop;
+
+    // When y is at minY (fully open), translateY is -100% (above the sheet)
+    // As y increases (sheet closing), translateY moves toward 0% (behind the sheet)
+    const aboveTranslateYPercent = useTransform(
+      sheetContext.y,
+      [minY, sheetContext.sheetHeight],
+      [-100, 0]
+    );
+    const aboveTranslateY = useMotionTemplate`translateY(${aboveTranslateYPercent}%)`;
 
     return (
       <SheetPositioner ref={positionerRef}>
         {renderAbove && (
-          <div
+          <motion.div
             className="react-modal-sheet-above"
             style={{
               position: 'absolute',
-              transform: 'translateY(-100%)',
+              transform: aboveTranslateY,
               width: '100%',
               pointerEvents: 'none',
+              zIndex: 0,
             }}
           >
             {renderAbove}
-          </div>
+          </motion.div>
         )}
         <motion.div
           {...rest}
