@@ -122,7 +122,8 @@ export interface SheetContextType {
   indicatorRotation: MotionValue<number>;
   avoidKeyboard: boolean;
   sheetBoundsRef: (node: HTMLDivElement | null) => void;
-  sheetRef: RefObject<any>;
+  positionerRef: RefObject<HTMLDivElement | null>;
+  containerRef: RefObject<HTMLDivElement | null>;
   unstyled: boolean;
   y: MotionValue<any>;
   yOverflow: MotionValue<number>;

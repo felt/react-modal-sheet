@@ -87,7 +87,8 @@ export const Sheet = forwardRef<any, SheetProps>(
     const safeAreaInsets = useSafeAreaInsets();
 
     const [sheetBoundsRef, sheetBounds] = useMeasure();
-    const sheetRef = useRef<HTMLDivElement>(null);
+    const positionerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const sheetHeight =
       detent === 'default' || detent === 'full'
         ? windowHeight
@@ -146,7 +147,7 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     const keyboard = useVirtualKeyboard({
       isEnabled: isOpen && avoidKeyboard,
-      containerRef: sheetRef,
+      positionerRef,
       debounceDelay: 0,
     });
 
@@ -219,14 +220,14 @@ export const Sheet = forwardRef<any, SheetProps>(
       // Find focused input inside the sheet and blur it when dragging starts
       // to prevent a weird ghost caret "bug" on mobile
       const focusedElement = document.activeElement as HTMLElement | null;
-      if (!focusedElement || !sheetRef.current) return;
+      if (!focusedElement || !positionerRef.current) return;
 
       const isInput =
         focusedElement.tagName === 'INPUT' ||
         focusedElement.tagName === 'TEXTAREA';
 
       // Only blur the focused element if it's inside the sheet
-      if (isInput && sheetRef.current.contains(focusedElement)) {
+      if (isInput && positionerRef.current.contains(focusedElement)) {
         focusedElement.blur();
       }
     });
@@ -422,7 +423,7 @@ export const Sheet = forwardRef<any, SheetProps>(
     }, [keyboard.isKeyboardOpen]);
 
     useScrollToFocusedInput({
-      containerRef: sheetRef,
+      containerRef,
       isKeyboardOpen: keyboard.isKeyboardOpen,
       keyboardHeight: keyboard.keyboardHeight,
       bottomOffset: safeAreaInsets.bottom + safeSpaceBottom,
@@ -586,7 +587,8 @@ export const Sheet = forwardRef<any, SheetProps>(
       indicatorRotation,
       avoidKeyboard,
       sheetBoundsRef,
-      sheetRef,
+      positionerRef,
+      containerRef,
       unstyled,
       y,
       yOverflow,

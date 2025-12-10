@@ -56,7 +56,7 @@ export const SheetPositioner = forwardRef<HTMLDivElement, SheetPositionerProps>(
     return (
       <motion.div
         ref={mergeRefs([
-          sheetContext.sheetRef,
+          sheetContext.positionerRef,
           sheetContext.sheetBoundsRef,
           ref,
         ])}
@@ -71,7 +71,7 @@ export const SheetPositioner = forwardRef<HTMLDivElement, SheetPositionerProps>(
 
 SheetPositioner.displayName = 'SheetPositioner';
 
-export const SheetContainer = forwardRef<any, SheetContainerProps>(
+export const SheetContainer = forwardRef<HTMLDivElement, SheetContainerProps>(
   (
     {
       children,
@@ -85,6 +85,7 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
     ref
   ) => {
     const sheetContext = useSheetContext();
+    const containerRef = sheetContext.containerRef;
 
     const isUnstyled = unstyled ?? sheetContext.unstyled;
 
@@ -136,7 +137,7 @@ export const SheetContainer = forwardRef<any, SheetContainerProps>(
         )}
         <motion.div
           {...rest}
-          ref={ref}
+          ref={mergeRefs([ref, containerRef])}
           className={`react-modal-sheet-container ${className}`}
           style={containerStyle}
         >

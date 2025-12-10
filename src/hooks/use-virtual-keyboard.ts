@@ -9,9 +9,9 @@ type VirtualKeyboardState = {
 
 type UseVirtualKeyboardOptions = {
   /**
-   * Ref to the container element to apply `keyboard-inset-height` CSS variable updates (required)
+   * Ref to the positioner element to apply `keyboard-inset-height` CSS variable updates (required)
    */
-  containerRef: RefObject<HTMLDivElement | null>;
+  positionerRef: RefObject<HTMLDivElement | null>;
   /**
    * Enable or disable the hook entirely (default: true)
    */
@@ -31,7 +31,7 @@ type UseVirtualKeyboardOptions = {
 };
 
 export function useVirtualKeyboard({
-  containerRef,
+  positionerRef,
   isEnabled = true,
   debounceDelay = 100,
   includeContentEditable = true,
@@ -62,7 +62,7 @@ export function useVirtualKeyboard({
     const vk = (navigator as any).virtualKeyboard;
 
     function setKeyboardInsetHeightEnv(height: number) {
-      containerRef.current?.style.setProperty(
+      positionerRef.current?.style.setProperty(
         '--keyboard-inset-height',
         // Safari 26 uses a floating address bar when keyboard is open that occludes the bottom of the sheet
         // and its height is not considered in the visual viewport. It is estimated to be 25px.
@@ -74,7 +74,7 @@ export function useVirtualKeyboard({
       if (
         e.target instanceof HTMLElement &&
         isTextInput(e.target) &&
-        containerRef.current?.contains(e.target)
+        positionerRef.current?.contains(e.target)
       ) {
         focusedElementRef.current = e.target;
         updateKeyboardState();
