@@ -42,6 +42,7 @@ export type SheetProps = {
   children: ReactNode;
   detent?: SheetDetent;
   disableDismiss?: boolean;
+  disableClose?: boolean;
   disableDrag?: boolean;
   disableScrollLocking?: boolean;
   dragCloseThreshold?: number;
@@ -62,6 +63,7 @@ export type SheetProps = {
   onOpenEnd?: () => void;
   onOpenStart?: () => void;
   onSnap?: (index: number) => void;
+  inert?: '';
 } & MotionCommonProps;
 
 export type SheetContainerProps = MotionCommonProps &

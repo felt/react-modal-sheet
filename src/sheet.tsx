@@ -53,6 +53,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       className = '',
       detent = 'default',
       disableDismiss = false,
+      disableClose = false,
       disableDrag: disableDragProp = false,
       disableScrollLocking = false,
       dragCloseThreshold = DEFAULT_DRAG_CLOSE_THRESHOLD,
@@ -79,6 +80,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       onDragEnd: onDragEndProp,
       onKeyboardOpen,
       skipOpenAnimation = false,
+      inert,
       ...rest
     },
     ref
@@ -156,10 +158,10 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     // +2 for tolerance in case the animated value is slightly off
     const zIndex = useTransform(y, (val) =>
-      val + 2 >= closedY ? -1 : (style?.zIndex ?? 9999)
+      val >= closedY ? -1 : (style?.zIndex ?? 9999)
     );
     const visibility = useTransform(y, (val) =>
-      val + 2 >= closedY ? 'hidden' : 'visible'
+      val >= closedY ? 'hidden' : 'visible'
     );
 
     const updateSnap = useStableCallback((snapIndex: number) => {
@@ -448,6 +450,34 @@ export const Sheet = forwardRef<any, SheetProps>(
       isDisabled: disableScrollLocking || !isOpen,
     });
 
+    // Close the sheet when the escape key is pressed
+    useEffect(() => {
+      if (!isOpen) return;
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+          if (inert === '') return;
+
+          const visibilityValue = visibility.get();
+          if (visibilityValue === 'hidden') return;
+
+          if (disableClose) {
+            const isLastSnapPoint = currentSnap === lastSnapPointIndex;
+            if (isLastSnapPoint) {
+              event.preventDefault();
+              snapTo(1);
+            }
+          } else {
+            event.preventDefault();
+            onClose();
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, disableClose, onClose, visibility, inert]);
+
     const yListenersRef = useRef<VoidFunction[]>([]);
     const clearYListeners = useStableCallback(() => {
       yListenersRef.current.forEach((listener) => listener());
@@ -602,6 +632,7 @@ export const Sheet = forwardRef<any, SheetProps>(
         <motion.div
           {...rest}
           ref={ref}
+          inert={inert}
           data-sheet-state={state}
           className={`react-modal-sheet-root ${className}`}
           style={{
