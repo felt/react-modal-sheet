@@ -56,6 +56,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       disableClose = false,
       disableDrag: disableDragProp = false,
       disableScrollLocking = false,
+      disableCloseOnEscape = false,
       dragCloseThreshold = DEFAULT_DRAG_CLOSE_THRESHOLD,
       dragVelocityThreshold = DEFAULT_DRAG_VELOCITY_THRESHOLD,
       initialSnap,
@@ -452,7 +453,7 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     // Close the sheet when the escape key is pressed
     useEffect(() => {
-      if (!isOpen) return;
+      if (!isOpen || disableCloseOnEscape) return;
 
       const handleKeyDown = (event: KeyboardEvent) => {
         if (event.key === 'Escape') {
@@ -476,7 +477,14 @@ export const Sheet = forwardRef<any, SheetProps>(
 
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, disableClose, onClose, visibility, inert]);
+    }, [
+      disableCloseOnEscape,
+      isOpen,
+      disableClose,
+      onClose,
+      visibility,
+      inert,
+    ]);
 
     const yListenersRef = useRef<VoidFunction[]>([]);
     const clearYListeners = useStableCallback(() => {

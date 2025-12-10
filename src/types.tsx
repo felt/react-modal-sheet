@@ -45,6 +45,7 @@ export type SheetProps = {
   disableClose?: boolean;
   disableDrag?: boolean;
   disableScrollLocking?: boolean;
+  disableCloseOnEscape?: boolean;
   dragCloseThreshold?: number;
   dragVelocityThreshold?: number;
   safeSpace?: Partial<{ top: number; bottom: number }>; // pixels
