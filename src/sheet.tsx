@@ -507,14 +507,19 @@ export const Sheet = forwardRef<any, SheetProps>(
             const initialSnapPoint =
               initialSnap !== undefined ? getSnapPoint(initialSnap) : null;
 
+            const onAnimationComplete = makeCallableSingleTime(() => {
+              clearYListeners();
+              handleOpenEnd();
+              resolve();
+            });
+
             if (!initialSnapPoint) {
               console.warn(
                 'No initial snap point found',
                 initialSnap,
                 snapPoints
               );
-              handleOpenEnd();
-              resolve();
+              onAnimationComplete();
               return;
             }
 
@@ -527,20 +532,17 @@ export const Sheet = forwardRef<any, SheetProps>(
                 y.on('animationCancel', () => {
                   clearYListeners();
                   if (openStateRef.current === 'opening') {
-                    handleOpenEnd();
-                    resolve();
+                    onAnimationComplete();
                   } else {
                     reject('stopped opening');
                   }
                 }),
-                y.on('animationComplete', () => {
-                  clearYListeners();
-                  handleOpenEnd();
-                  resolve();
-                })
+                y.on('animationComplete', onAnimationComplete)
               );
 
-              animate(y, initialSnapPoint.snapValueY, animationOptions);
+              animate(y, initialSnapPoint.snapValueY, animationOptions).then(
+                onAnimationComplete
+              );
             }
           };
 
@@ -575,29 +577,35 @@ export const Sheet = forwardRef<any, SheetProps>(
             openStateRef.current = 'closed';
           };
 
+          const onAnimationComplete = makeCallableSingleTime(() => {
+            clearYListeners();
+            handleCloseEnd();
+            resolve();
+          });
+
           yListenersRef.current.push(
             y.on('animationCancel', () => {
               clearYListeners();
 
               if (openStateRef.current === 'closing') {
-                handleCloseEnd();
-                resolve();
+                onAnimationComplete();
               } else {
                 reject('stopped closing');
               }
             }),
             y.on('animationComplete', () => {
-              clearYListeners();
-
-              handleCloseEnd();
-              resolve();
+              onAnimationComplete();
             })
           );
 
-          animate(y, closedY, animationOptions);
+          animate(y, closedY, animationOptions).then(() => {
+            onAnimationComplete();
+          });
         });
       },
     });
+
+    console.log(rest.id, 'isOpen', isOpen, 'state', state);
 
     const dragProps: SheetContextType['dragProps'] = {
       drag: 'y',
@@ -667,4 +675,13 @@ function linear(
     Math.min(1, (value - inputMin) / (inputMax - inputMin))
   );
   return outputMin + (outputMax - outputMin) * t;
+}
+
+function makeCallableSingleTime<T>(fn: () => T) {
+  let called = false;
+  return () => {
+    if (called) return;
+    called = true;
+    fn();
+  };
 }
