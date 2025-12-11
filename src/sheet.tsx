@@ -613,8 +613,6 @@ export const Sheet = forwardRef<any, SheetProps>(
       },
     });
 
-    console.log(rest.id, 'isOpen', isOpen, 'state', state);
-
     const dragProps: SheetContextType['dragProps'] = {
       drag: 'y',
       dragElastic: 0,
