@@ -53,7 +53,6 @@ export const Sheet = forwardRef<any, SheetProps>(
       className = '',
       detent = 'default',
       disableDismiss = false,
-      disableClose = false,
       disableDrag: disableDragProp = false,
       disableScrollLocking = false,
       disableCloseOnEscape = false,
@@ -462,29 +461,14 @@ export const Sheet = forwardRef<any, SheetProps>(
           const visibilityValue = visibility.get();
           if (visibilityValue === 'hidden') return;
 
-          if (disableClose) {
-            const isLastSnapPoint = currentSnap === lastSnapPointIndex;
-            if (isLastSnapPoint) {
-              event.preventDefault();
-              snapTo(1);
-            }
-          } else {
-            event.preventDefault();
-            onClose();
-          }
+          event.preventDefault();
+          onClose();
         }
       };
 
       document.addEventListener('keydown', handleKeyDown);
       return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [
-      disableCloseOnEscape,
-      isOpen,
-      disableClose,
-      onClose,
-      visibility,
-      inert,
-    ]);
+    }, [disableCloseOnEscape, isOpen, onClose, visibility, inert]);
 
     const yListenersRef = useRef<VoidFunction[]>([]);
     const clearYListeners = useStableCallback(() => {

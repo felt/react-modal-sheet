@@ -42,7 +42,6 @@ export type SheetProps = {
   children: ReactNode;
   detent?: SheetDetent;
   disableDismiss?: boolean;
-  disableClose?: boolean;
   disableDrag?: boolean;
   disableScrollLocking?: boolean;
   disableCloseOnEscape?: boolean;
