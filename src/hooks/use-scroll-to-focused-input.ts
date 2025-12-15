@@ -91,7 +91,9 @@ function scrollFocusedInputIntoView(
   keyboardHeight: number,
   bottomOffset: number
 ) {
-  requestAnimationFrame(() => {
+  // setTimeout instead of requestAnimationFrame is required otherwise the
+  // scrolling doesn't work if you switch from one field to another.
+  setTimeout(() => {
     const inputRect = element.getBoundingClientRect();
     const label = findAssociatedLabel(element);
 
@@ -153,7 +155,7 @@ function scrollFocusedInputIntoView(
         block: 'center',
       });
     }
-  });
+  }, 0);
 }
 
 /**
