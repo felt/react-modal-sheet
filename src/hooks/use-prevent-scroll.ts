@@ -154,10 +154,16 @@ function preventScrollStandard() {
 function preventScrollMobileSafari() {
   let scrollable: Element | undefined;
   let lastY = 0;
+  // Track if the user moved their finger during the touch gesture (scroll vs tap)
+  let didScroll = false;
 
   const onTouchStart = (e: TouchEvent) => {
     // Use `composedPath` to support shadow DOM.
     const target = e.composedPath()?.[0] as HTMLElement;
+
+    // Reset scroll tracking for new gesture
+    didScroll = false;
+
     if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
 
     // Store the nearest scrollable parent element from the element that the user touched.
@@ -174,6 +180,9 @@ function preventScrollMobileSafari() {
   };
 
   const onTouchMove = (e: TouchEvent) => {
+    // Mark that user is scrolling (not tapping) - must be before any returns
+    didScroll = true;
+
     // In special situations, `onTouchStart` may be called without `onTouchStart` being called.
     // (e.g. when the user places a finger on the screen before the <Sheet> is mounted and then moves the finger after it is mounted).
     // If `onTouchStart` is not called, `scrollable` is `undefined`. Therefore, such cases are ignored.
@@ -213,6 +222,11 @@ function preventScrollMobileSafari() {
   const onTouchEnd = (e: TouchEvent) => {
     // Use `composedPath` to support shadow DOM.
     const target = e.composedPath()?.[0] as HTMLElement;
+
+    // Skip focusing if user was scrolling, not tapping
+    if (didScroll) {
+      return;
+    }
 
     // Apply this change if we're not already focused on the target element
     if (willOpenKeyboard(target) && target !== document.activeElement) {
