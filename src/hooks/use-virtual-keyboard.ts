@@ -1,6 +1,6 @@
 import { type RefObject, useEffect, useRef, useState } from 'react';
-import { useStableCallback } from './use-stable-callback';
 import { isIOSSafari26 } from '../utils';
+import { isTextInput } from './isTextInput';
 
 type VirtualKeyboardState = {
   isVisible: boolean;
@@ -44,16 +44,6 @@ export function useVirtualKeyboard({
 
   const focusedElementRef = useRef<HTMLElement | null>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const isTextInput = useStableCallback((el: Element | null) => {
-    return (
-      el?.tagName === 'INPUT' ||
-      el?.tagName === 'TEXTAREA' ||
-      (includeContentEditable &&
-        el instanceof HTMLElement &&
-        el.isContentEditable)
-    );
-  });
 
   useEffect(() => {
     if (!isEnabled) return;

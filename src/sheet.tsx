@@ -34,6 +34,7 @@ import { usePreventScroll } from './hooks/use-prevent-scroll';
 import { useSheetState } from './hooks/use-sheet-state';
 import { useStableCallback } from './hooks/use-stable-callback';
 import { useScrollToFocusedInput } from './hooks/use-scroll-to-focused-input';
+import { useSnapOnFocus } from './hooks/use-snap-on-focus';
 import { useVirtualKeyboard } from './hooks/use-virtual-keyboard';
 import {
   computeSnapPoints,
@@ -417,12 +418,14 @@ export const Sheet = forwardRef<any, SheetProps>(
       return onKeyboardOpen();
     });
 
-    useEffect(() => {
-      if (openStateRef.current !== 'open') return;
-      if (detent !== 'default') return;
-      if (!keyboard.isKeyboardOpen) return;
-      return handleKeyboardOpen();
-    }, [keyboard.isKeyboardOpen]);
+    useSnapOnFocus({
+      containerRef: positionerRef,
+      isOpen: openStateRef.current === 'open',
+      currentSnap,
+      lastSnapPointIndex,
+      isEnabled: detent === 'default',
+      onSnapToFull: handleKeyboardOpen,
+    });
 
     useScrollToFocusedInput({
       containerRef,
@@ -491,8 +494,10 @@ export const Sheet = forwardRef<any, SheetProps>(
               updateSnap(initialSnap);
             }
 
-            onOpenEnd?.();
             openStateRef.current = 'open';
+            requestAnimationFrame(() => {
+              onOpenEnd?.();
+            });
           };
 
           const doWhenSheetReady = () => {

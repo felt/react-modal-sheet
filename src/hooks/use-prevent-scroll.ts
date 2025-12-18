@@ -2,6 +2,7 @@
 
 import { useIsomorphicLayoutEffect } from './use-isomorphic-layout-effect';
 import { isIOS } from '../utils';
+import { isTextInput } from './isTextInput';
 
 const KEYBOARD_BUFFER = 24;
 
@@ -164,7 +165,7 @@ function preventScrollMobileSafari() {
     // Reset scroll tracking for new gesture
     didScroll = false;
 
-    if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') return;
+    if (isTextInput(target)) return;
 
     // Store the nearest scrollable parent element from the element that the user touched.
     scrollable = getScrollParent(target, true);
