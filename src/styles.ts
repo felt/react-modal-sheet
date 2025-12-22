@@ -48,6 +48,7 @@ export const styles = {
     base: {
       display: 'flex',
       flexDirection: 'column',
+      overflow: 'hidden',
       pointerEvents: 'auto',
       flex: 1,
     },
