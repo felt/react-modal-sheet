@@ -53,6 +53,16 @@ export const SheetPositioner = forwardRef<HTMLDivElement, SheetPositionerProps>(
       positionerStyle.maxHeight = `calc(${DEFAULT_HEIGHT} - ${sheetContext.safeSpaceTop}px)`;
     }
 
+    if (sheetContext.detent === 'content-fixed') {
+      // Use locked height if available, otherwise auto (during initial measurement)
+      if (sheetContext.lockedContentHeight !== null) {
+        positionerStyle.height = `${sheetContext.lockedContentHeight}px`;
+      } else {
+        positionerStyle.height = 'auto';
+      }
+      positionerStyle.maxHeight = `calc(${DEFAULT_HEIGHT} - ${sheetContext.safeSpaceTop}px)`;
+    }
+
     return (
       <motion.div
         ref={mergeRefs([
@@ -105,8 +115,11 @@ export const SheetContainer = forwardRef<HTMLDivElement, SheetContainerProps>(
 
     // Animate the translateY of the above element so it slides down behind the sheet as it closes
     // The minimum y value (fully open) depends on the detent type
+    const isContentDetent =
+      sheetContext.detent === 'content' ||
+      sheetContext.detent === 'content-fixed';
     const minY =
-      sheetContext.detent === 'full' || sheetContext.detent === 'content'
+      sheetContext.detent === 'full' || isContentDetent
         ? 0
         : sheetContext.safeSpaceTop;
 

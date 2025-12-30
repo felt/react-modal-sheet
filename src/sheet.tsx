@@ -92,11 +92,25 @@ export const Sheet = forwardRef<any, SheetProps>(
     const [sheetBoundsRef, sheetBounds] = useMeasure();
     const positionerRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [currentSnap, setCurrentSnap] = useState(initialSnap);
+
+    // For content-fixed detent, lock the height once the sheet opens
+    const [lockedContentHeight, setLockedContentHeight] = useState<
+      number | null
+    >(null);
+
+    const measuredContentHeight = Math.round(sheetBounds.height);
+    // Keep a ref to access current measured height in callbacks
+    const measuredContentHeightRef = useRef(measuredContentHeight);
+    measuredContentHeightRef.current = measuredContentHeight;
     const sheetHeight =
       detent === 'default' || detent === 'full'
         ? windowHeight
-        : Math.round(sheetBounds.height);
-    const [currentSnap, setCurrentSnap] = useState(initialSnap);
+        : detent === 'content-fixed' && lockedContentHeight !== null
+          ? lockedContentHeight
+          : measuredContentHeight;
+
+    const isContentDetent = detent === 'content' || detent === 'content-fixed';
 
     const safeSpaceTop =
       detent === 'full' ? 0 : (safeSpaceProp?.top ?? DEFAULT_TOP_CONSTRAINT);
@@ -109,13 +123,13 @@ export const Sheet = forwardRef<any, SheetProps>(
     const maxSnapValueOnDefaultDetent =
       windowHeight - safeSpaceTop - safeAreaInsets.top;
     const maxSnapValue =
-      detent === 'full' || detent === 'content'
+      detent === 'full' || isContentDetent
         ? windowHeight
         : maxSnapValueOnDefaultDetent;
 
     const dragConstraints: Axis = {
       min:
-        detent === 'full' || detent === 'content'
+        detent === 'full' || isContentDetent
           ? 0
           : safeSpaceTop + safeAreaInsets.top, // top constraint (applied through sheet height instead)
       max: windowHeight - safeSpaceBottom - safeAreaInsets.bottom, // bottom constraint
@@ -494,6 +508,13 @@ export const Sheet = forwardRef<any, SheetProps>(
               updateSnap(initialSnap);
             }
 
+            // Lock the content height for content-fixed detent to prevent resizing
+            // Use ref to get current measured height (not stale closure value)
+            const currentMeasuredHeight = measuredContentHeightRef.current;
+            if (detent === 'content-fixed' && currentMeasuredHeight > 0) {
+              setLockedContentHeight(currentMeasuredHeight);
+            }
+
             openStateRef.current = 'open';
             requestAnimationFrame(() => {
               onOpenEnd?.();
@@ -548,7 +569,7 @@ export const Sheet = forwardRef<any, SheetProps>(
            * but we need to wait for the sheet to be rendered and visible
            * before we can measure it and animate it to the initial snap point.
            */
-          if (detent === 'content') {
+          if (isContentDetent) {
             waitForElement('react-modal-sheet-container').then(
               doWhenSheetReady
             );
@@ -566,6 +587,11 @@ export const Sheet = forwardRef<any, SheetProps>(
           onCloseStart?.();
 
           const handleCloseEnd = () => {
+            // Reset locked content height for content-fixed detent
+            if (detent === 'content-fixed') {
+              setLockedContentHeight(null);
+            }
+
             if (onCloseEnd) {
               // waiting a frame to ensure the sheet is fully closed
               // otherwise it was causing some issue with AnimatePresence's safeToRemove
@@ -628,6 +654,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       sheetHeight,
       safeSpaceTop: safeSpaceTop + safeAreaInsets.top,
       safeSpaceBottom: safeSpaceBottom + safeAreaInsets.bottom,
+      lockedContentHeight,
     };
 
     const sheet = (
@@ -637,6 +664,7 @@ export const Sheet = forwardRef<any, SheetProps>(
           ref={ref}
           inert={inert}
           data-sheet-state={state}
+          data-sheet-detent={detent}
           className={`react-modal-sheet-root ${className}`}
           style={{
             ...applyStyles(styles.root, unstyled),
