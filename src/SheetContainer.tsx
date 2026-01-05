@@ -53,7 +53,7 @@ export const SheetPositioner = forwardRef<HTMLDivElement, SheetPositionerProps>(
       positionerStyle.maxHeight = `calc(${DEFAULT_HEIGHT} - ${sheetContext.safeSpaceTop}px)`;
     }
 
-    if (sheetContext.detent === 'content-fixed') {
+    if (sheetContext.detent === 'initial-content') {
       // Use locked height if available, otherwise auto (during initial measurement)
       if (sheetContext.lockedContentHeight !== null) {
         positionerStyle.height = `${sheetContext.lockedContentHeight}px`;
@@ -117,7 +117,7 @@ export const SheetContainer = forwardRef<HTMLDivElement, SheetContainerProps>(
     // The minimum y value (fully open) depends on the detent type
     const isContentDetent =
       sheetContext.detent === 'content' ||
-      sheetContext.detent === 'content-fixed';
+      sheetContext.detent === 'initial-content';
     const minY =
       sheetContext.detent === 'full' || isContentDetent
         ? 0

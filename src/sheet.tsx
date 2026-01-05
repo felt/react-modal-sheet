@@ -94,7 +94,7 @@ export const Sheet = forwardRef<any, SheetProps>(
     const containerRef = useRef<HTMLDivElement>(null);
     const [currentSnap, setCurrentSnap] = useState(initialSnap);
 
-    // For content-fixed detent, lock the height once the sheet opens
+    // For initial-content detent, lock the height once the sheet opens
     const [lockedContentHeight, setLockedContentHeight] = useState<
       number | null
     >(null);
@@ -106,11 +106,12 @@ export const Sheet = forwardRef<any, SheetProps>(
     const sheetHeight =
       detent === 'default' || detent === 'full'
         ? windowHeight
-        : detent === 'content-fixed' && lockedContentHeight !== null
+        : detent === 'initial-content' && lockedContentHeight !== null
           ? lockedContentHeight
           : measuredContentHeight;
 
-    const isContentDetent = detent === 'content' || detent === 'content-fixed';
+    const isContentDetent =
+      detent === 'content' || detent === 'initial-content';
 
     const safeSpaceTop =
       detent === 'full' ? 0 : (safeSpaceProp?.top ?? DEFAULT_TOP_CONSTRAINT);
@@ -508,10 +509,10 @@ export const Sheet = forwardRef<any, SheetProps>(
               updateSnap(initialSnap);
             }
 
-            // Lock the content height for content-fixed detent to prevent resizing
+            // Lock the content height for initial-content detent to prevent resizing
             // Use ref to get current measured height (not stale closure value)
             const currentMeasuredHeight = measuredContentHeightRef.current;
-            if (detent === 'content-fixed' && currentMeasuredHeight > 0) {
+            if (detent === 'initial-content' && currentMeasuredHeight > 0) {
               setLockedContentHeight(currentMeasuredHeight);
             }
 
@@ -587,8 +588,8 @@ export const Sheet = forwardRef<any, SheetProps>(
           onCloseStart?.();
 
           const handleCloseEnd = () => {
-            // Reset locked content height for content-fixed detent
-            if (detent === 'content-fixed') {
+            // Reset locked content height for initial-content detent
+            if (detent === 'initial-content') {
               setLockedContentHeight(null);
             }
 

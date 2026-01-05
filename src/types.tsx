@@ -16,7 +16,7 @@ import {
   type motion,
 } from 'motion/react';
 
-export type SheetDetent = 'default' | 'full' | 'content' | 'content-fixed';
+export type SheetDetent = 'default' | 'full' | 'content' | 'initial-content';
 
 type CommonProps = {
   className?: string;
@@ -132,7 +132,7 @@ export interface SheetContextType {
   sheetHeight: number;
   safeSpaceTop: number;
   safeSpaceBottom: number;
-  /** For content-fixed detent: the locked height once the sheet opens */
+  /** For initial-content detent: the locked height once the sheet opens */
   lockedContentHeight: number | null;
 }
 
