@@ -1,5 +1,6 @@
 import { type RefObject, useEffect, useRef, useState } from 'react';
-import { useStableCallback } from './use-stable-callback';
+import { isIOSSafari26 } from '../utils';
+import { isTextInput } from './isTextInput';
 
 type VirtualKeyboardState = {
   isVisible: boolean;
@@ -8,9 +9,9 @@ type VirtualKeyboardState = {
 
 type UseVirtualKeyboardOptions = {
   /**
-   * Ref to the container element to apply `keyboard-inset-height` CSS variable updates (required)
+   * Ref to the positioner element to apply `keyboard-inset-height` CSS variable updates (required)
    */
-  containerRef: RefObject<HTMLDivElement | null>;
+  positionerRef: RefObject<HTMLDivElement | null>;
   /**
    * Enable or disable the hook entirely (default: true)
    */
@@ -30,7 +31,7 @@ type UseVirtualKeyboardOptions = {
 };
 
 export function useVirtualKeyboard({
-  containerRef,
+  positionerRef,
   isEnabled = true,
   debounceDelay = 100,
   includeContentEditable = true,
@@ -44,16 +45,6 @@ export function useVirtualKeyboard({
   const focusedElementRef = useRef<HTMLElement | null>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const isTextInput = useStableCallback((el: Element | null) => {
-    return (
-      el?.tagName === 'INPUT' ||
-      el?.tagName === 'TEXTAREA' ||
-      (includeContentEditable &&
-        el instanceof HTMLElement &&
-        el.isContentEditable)
-    );
-  });
-
   useEffect(() => {
     if (!isEnabled) return;
 
@@ -61,14 +52,20 @@ export function useVirtualKeyboard({
     const vk = (navigator as any).virtualKeyboard;
 
     function setKeyboardInsetHeightEnv(height: number) {
-      containerRef.current?.style.setProperty(
+      positionerRef.current?.style.setProperty(
         '--keyboard-inset-height',
-        `${height}px`
+        // Safari 26 uses a floating address bar when keyboard is open that occludes the bottom of the sheet
+        // and its height is not considered in the visual viewport. It is estimated to be 25px.
+        `${isIOSSafari26() ? (height ? height + 10 : 0) : height}px`
       );
     }
 
     function handleFocusIn(e: FocusEvent) {
-      if (e.target instanceof HTMLElement && isTextInput(e.target)) {
+      if (
+        e.target instanceof HTMLElement &&
+        isTextInput(e.target) &&
+        positionerRef.current?.contains(e.target)
+      ) {
         focusedElementRef.current = e.target;
         updateKeyboardState();
       }
@@ -93,6 +90,18 @@ export function useVirtualKeyboard({
           return;
         }
 
+        if (vk) {
+          const virtualKeyboardHeight = vk.boundingRect.height;
+
+          setKeyboardInsetHeightEnv(virtualKeyboardHeight);
+          setState({
+            isVisible: virtualKeyboardHeight > 0,
+            height: virtualKeyboardHeight,
+          });
+
+          return;
+        }
+
         if (vv) {
           const heightDiff = window.innerHeight - vv.height;
 
@@ -103,6 +112,8 @@ export function useVirtualKeyboard({
             setKeyboardInsetHeightEnv(0);
             setState({ isVisible: false, height: 0 });
           }
+
+          return;
         }
       }, debounceDelay);
     }
@@ -120,6 +131,7 @@ export function useVirtualKeyboard({
     if (vk) {
       currentOverlaysContent = vk.overlaysContent;
       vk.overlaysContent = true;
+      vk.addEventListener('geometrychange', updateKeyboardState);
     }
 
     return () => {
@@ -133,6 +145,7 @@ export function useVirtualKeyboard({
 
       if (vk) {
         vk.overlaysContent = currentOverlaysContent;
+        vk.removeEventListener('geometrychange', updateKeyboardState);
       }
 
       if (debounceTimer.current) {

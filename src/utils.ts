@@ -1,5 +1,7 @@
 import { type CSSProperties, type ForwardedRef, type RefCallback } from 'react';
 import { IS_SSR } from './constants';
+import type { Axis } from 'motion/react';
+import { mixNumber } from 'motion/react';
 
 export function applyStyles(
   styles: { base: CSSProperties; decorative: CSSProperties },
@@ -68,6 +70,16 @@ export const isIOS = cached(function () {
   return isIPhone() || isIPad();
 });
 
+const isSafari = cached(function () {
+  return navigator.userAgent.search(/Safari/g) !== -1;
+});
+
+export const isIOSSafari26 = cached(function () {
+  if (!isIOS()) return false;
+  if (!isSafari()) return false;
+  return navigator.userAgent.search(/Version\/26[0-9.]*/g) !== -1;
+});
+
 /** Wait for an element to be rendered and visible */
 export function waitForElement(
   className: string,
@@ -87,4 +99,26 @@ export function waitForElement(
       }
     }, interval);
   });
+}
+
+// source: https://github.com/motiondivision/motion/blob/main/packages/framer-motion/src/gestures/drag/utils/constraints.ts#L18
+/**
+ * Apply constraints to a point. These constraints are both physical along an
+ * axis, and an elastic factor that determines how much to constrain the point
+ * by if it does lie outside the defined parameters.
+ */
+export function applyConstraints(
+  point: number,
+  { min, max }: Partial<Axis>,
+  elastic?: Axis
+): number {
+  if (min !== undefined && point < min) {
+    // If we have a min point defined, and this is outside of that, constrain
+    point = elastic ? mixNumber(min, point, elastic.min) : Math.max(point, min);
+  } else if (max !== undefined && point > max) {
+    // If we have a max point defined, and this is outside of that, constrain
+    point = elastic ? mixNumber(max, point, elastic.max) : Math.min(point, max);
+  }
+
+  return point;
 }
