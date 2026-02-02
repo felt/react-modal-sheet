@@ -127,8 +127,8 @@ export const SheetContainer = forwardRef<HTMLDivElement, SheetContainerProps>(
     // As y increases (sheet closing), translateY moves toward 0% (behind the sheet)
     const aboveTranslateYPercent = useTransform(
       sheetContext.y,
-      [minY, sheetContext.sheetHeight],
-      [-100, 0]
+      [minY, sheetContext.sheetHeight - 50, sheetContext.sheetHeight],
+      [-100, -100, 0]
     );
     const aboveTranslateY = useMotionTemplate`translateY(${aboveTranslateYPercent}%)`;
 
