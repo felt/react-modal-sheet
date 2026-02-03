@@ -8,7 +8,7 @@ export const styles = {
       bottom: 0,
       left: 0,
       right: 0,
-      overflow: 'hidden',
+      overflow: 'clip',
       pointerEvents: 'none',
     },
     decorative: {},
@@ -23,6 +23,7 @@ export const styles = {
       height: '100%',
       touchAction: 'none',
       userSelect: 'none',
+      WebkitUserSelect: 'none',
     },
     decorative: {
       backgroundColor: 'rgba(0, 0, 0, 0.2)',
@@ -30,16 +31,26 @@ export const styles = {
       WebkitTapHighlightColor: 'transparent',
     },
   },
-  container: {
+  positioner: {
     base: {
       zIndex: 2,
       position: 'absolute',
       left: 0,
       bottom: 0,
-      width: '100%',
-      pointerEvents: 'auto',
       display: 'flex',
       flexDirection: 'column',
+      width: '100%',
+      pointerEvents: 'none',
+    },
+    decorative: {},
+  },
+  container: {
+    base: {
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      pointerEvents: 'auto',
+      flex: 1,
     },
     decorative: {
       backgroundColor: '#fff',

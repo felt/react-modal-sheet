@@ -1,4 +1,5 @@
 import {
+  type Ref,
   type ComponentPropsWithoutRef,
   type ForwardRefExoticComponent,
   type FunctionComponent,
@@ -15,7 +16,7 @@ import {
   type motion,
 } from 'motion/react';
 
-export type SheetDetent = 'default' | 'full' | 'content';
+export type SheetDetent = 'default' | 'full' | 'content' | 'initial-content';
 
 type CommonProps = {
   className?: string;
@@ -24,7 +25,10 @@ type CommonProps = {
 
 type MotionProps = ComponentPropsWithoutRef<typeof motion.div>;
 
-type MotionCommonProps = Omit<MotionProps, 'initial' | 'animate' | 'exit'>;
+type MotionCommonProps = Omit<
+  MotionProps,
+  'initial' | 'animate' | 'exit' | 'dragConstraints'
+>;
 
 export interface SheetTweenConfig {
   ease: EasingDefinition;
@@ -34,13 +38,16 @@ export interface SheetTweenConfig {
 export type SheetProps = {
   unstyled?: boolean;
   avoidKeyboard?: boolean;
+  onKeyboardOpen?: (() => VoidFunction) | (() => void);
   children: ReactNode;
   detent?: SheetDetent;
   disableDismiss?: boolean;
   disableDrag?: boolean;
   disableScrollLocking?: boolean;
+  disableCloseOnEscape?: boolean;
   dragCloseThreshold?: number;
   dragVelocityThreshold?: number;
+  safeSpace?: Partial<{ top: number; bottom: number }>; // pixels
   initialSnap?: number; // index of snap points array
   isOpen: boolean;
   modalEffectRootId?: string;
@@ -49,17 +56,21 @@ export type SheetProps = {
   prefersReducedMotion?: boolean;
   snapPoints?: number[];
   tweenConfig?: SheetTweenConfig;
+  skipOpenAnimation?: boolean;
   onClose: () => void;
   onCloseEnd?: () => void;
   onCloseStart?: () => void;
   onOpenEnd?: () => void;
   onOpenStart?: () => void;
   onSnap?: (index: number) => void;
+  inert?: '';
 } & MotionCommonProps;
 
 export type SheetContainerProps = MotionCommonProps &
   CommonProps & {
     children: ReactNode;
+    renderAbove?: ReactNode;
+    positionerRef?: Ref<HTMLDivElement>;
   };
 
 export type SheetHeaderProps = MotionCommonProps &
@@ -73,6 +84,7 @@ export type SheetContentProps = MotionCommonProps &
     disableDrag?: boolean | ((args: SheetStateInfo) => boolean);
     disableScroll?: boolean | ((args: SheetStateInfo) => boolean);
     scrollRef?: RefObject<HTMLDivElement | null>;
+    avoidKeyboard?: boolean;
   };
 
 export type SheetBackdropProps = MotionProps &
@@ -112,9 +124,16 @@ export interface SheetContextType {
   indicatorRotation: MotionValue<number>;
   avoidKeyboard: boolean;
   sheetBoundsRef: (node: HTMLDivElement | null) => void;
-  sheetRef: RefObject<any>;
+  positionerRef: RefObject<HTMLDivElement | null>;
+  containerRef: RefObject<HTMLDivElement | null>;
   unstyled: boolean;
   y: MotionValue<any>;
+  yOverflow: MotionValue<number>;
+  sheetHeight: number;
+  safeSpaceTop: number;
+  safeSpaceBottom: number;
+  /** For initial-content detent: the locked height once the sheet opens */
+  lockedContentHeight: number | null;
 }
 
 export interface SheetScrollerContextType {

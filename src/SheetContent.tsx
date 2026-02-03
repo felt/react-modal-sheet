@@ -18,6 +18,7 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
       className = '',
       scrollRef: scrollRefProp = null,
       unstyled,
+      avoidKeyboard: avoidKeyboardProp,
       ...rest
     },
     ref
@@ -66,13 +67,16 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
 
     const scrollStyle: MotionStyle = applyStyles(styles.scroller, isUnstyled);
 
-    if (sheetContext.avoidKeyboard) {
-      scrollStyle.paddingBottom =
-        'env(keyboard-inset-height, var(--keyboard-inset-height, 0px))';
-    }
+    const shouldRenderScroller = disableScrollProp === false || !disableScroll;
 
-    if (disableScroll) {
-      scrollStyle.overflowY = 'hidden';
+    const avoidKeyboard = avoidKeyboardProp ?? sheetContext.avoidKeyboard;
+
+    if (avoidKeyboard) {
+      if (disableScroll) {
+        contentStyle.paddingBottom = 'var(--keyboard-inset-height, 0px)';
+      } else {
+        scrollStyle.paddingBottom = 'var(--keyboard-inset-height, 0px)';
+      }
     }
 
     return (
@@ -85,13 +89,17 @@ export const SheetContent = forwardRef<any, SheetContentProps>(
         dragConstraints={dragConstraints.ref}
         onMeasureDragConstraints={dragConstraints.onMeasure}
       >
-        <motion.div
-          ref={mergeRefs([scroll.ref, scrollRefProp])}
-          style={scrollStyle}
-          className="react-modal-sheet-content-scroller"
-        >
-          {children}
-        </motion.div>
+        {shouldRenderScroller ? (
+          <motion.div
+            ref={mergeRefs([scroll.ref, scrollRefProp])}
+            style={scrollStyle}
+            className="react-modal-sheet-content-scroller"
+          >
+            {children}
+          </motion.div>
+        ) : (
+          children
+        )}
       </motion.div>
     );
   }

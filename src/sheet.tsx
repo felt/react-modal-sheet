@@ -1,5 +1,6 @@
 import {
   animate,
+  Axis,
   type DragHandler,
   motion,
   type Transition,
@@ -9,9 +10,11 @@ import {
 } from 'motion/react';
 import React, {
   forwardRef,
+  useEffect,
   useImperativeHandle,
   useRef,
   useState,
+  useMemo,
 } from 'react';
 import { createPortal } from 'react-dom';
 import useMeasure from 'react-use-measure';
@@ -19,6 +22,7 @@ import useMeasure from 'react-use-measure';
 import {
   DEFAULT_DRAG_CLOSE_THRESHOLD,
   DEFAULT_DRAG_VELOCITY_THRESHOLD,
+  DEFAULT_TOP_CONSTRAINT,
   DEFAULT_TWEEN_CONFIG,
   IS_SSR,
   REDUCED_MOTION_TWEEN_CONFIG,
@@ -29,6 +33,8 @@ import { useModalEffect } from './hooks/use-modal-effect';
 import { usePreventScroll } from './hooks/use-prevent-scroll';
 import { useSheetState } from './hooks/use-sheet-state';
 import { useStableCallback } from './hooks/use-stable-callback';
+import { useScrollToFocusedInput } from './hooks/use-scroll-to-focused-input';
+import { useSnapOnFocus } from './hooks/use-snap-on-focus';
 import { useVirtualKeyboard } from './hooks/use-virtual-keyboard';
 import {
   computeSnapPoints,
@@ -37,7 +43,8 @@ import {
 } from './snap';
 import { styles } from './styles';
 import { type SheetContextType, type SheetProps } from './types';
-import { applyStyles, waitForElement } from './utils';
+import { applyConstraints, applyStyles, waitForElement } from './utils';
+import { useSafeAreaInsets } from './hooks/use-safe-area-insets';
 
 export const Sheet = forwardRef<any, SheetProps>(
   (
@@ -49,6 +56,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       disableDismiss = false,
       disableDrag: disableDragProp = false,
       disableScrollLocking = false,
+      disableCloseOnEscape = false,
       dragCloseThreshold = DEFAULT_DRAG_CLOSE_THRESHOLD,
       dragVelocityThreshold = DEFAULT_DRAG_VELOCITY_THRESHOLD,
       initialSnap,
@@ -61,6 +69,7 @@ export const Sheet = forwardRef<any, SheetProps>(
       style,
       tweenConfig = DEFAULT_TWEEN_CONFIG,
       unstyled = false,
+      safeSpace: safeSpaceProp,
       onOpenStart,
       onOpenEnd,
       onClose,
@@ -70,22 +79,80 @@ export const Sheet = forwardRef<any, SheetProps>(
       onDrag: onDragProp,
       onDragStart: onDragStartProp,
       onDragEnd: onDragEndProp,
+      onKeyboardOpen,
+      skipOpenAnimation = false,
+      inert,
       ...rest
     },
     ref
   ) => {
-    const [sheetBoundsRef, sheetBounds] = useMeasure();
-    const sheetRef = useRef<HTMLDivElement>(null);
-    const sheetHeight = Math.round(sheetBounds.height);
-    const [currentSnap, setCurrentSnap] = useState(initialSnap);
-    const snapPoints =
-      snapPointsProp && sheetHeight > 0
-        ? computeSnapPoints({ sheetHeight, snapPointsProp })
-        : [];
-
     const { windowHeight } = useDimensions();
+    const safeAreaInsets = useSafeAreaInsets();
+
+    const [sheetBoundsRef, sheetBounds] = useMeasure();
+    const positionerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [currentSnap, setCurrentSnap] = useState(initialSnap);
+
+    // For initial-content detent, lock the height once the sheet opens
+    const [lockedContentHeight, setLockedContentHeight] = useState<
+      number | null
+    >(null);
+
+    const measuredContentHeight = Math.round(sheetBounds.height);
+    // Keep a ref to access current measured height in callbacks
+    const measuredContentHeightRef = useRef(measuredContentHeight);
+    measuredContentHeightRef.current = measuredContentHeight;
+    const sheetHeight =
+      detent === 'default' || detent === 'full'
+        ? windowHeight
+        : detent === 'initial-content' && lockedContentHeight !== null
+          ? lockedContentHeight
+          : measuredContentHeight;
+
+    const isContentDetent =
+      detent === 'content' || detent === 'initial-content';
+
+    const safeSpaceTop =
+      detent === 'full' ? 0 : (safeSpaceProp?.top ?? DEFAULT_TOP_CONSTRAINT);
+
+    const safeSpaceBottom = safeSpaceProp?.bottom ?? 0;
+
+    const minSnapValue = safeSpaceBottom
+      ? safeSpaceBottom + safeAreaInsets.bottom
+      : 0;
+    const maxSnapValueOnDefaultDetent =
+      windowHeight - safeSpaceTop - safeAreaInsets.top;
+    const maxSnapValue =
+      detent === 'full' || isContentDetent
+        ? windowHeight
+        : maxSnapValueOnDefaultDetent;
+
+    const dragConstraints: Axis = {
+      min:
+        detent === 'full' || isContentDetent
+          ? 0
+          : safeSpaceTop + safeAreaInsets.top, // top constraint (applied through sheet height instead)
+      max: windowHeight - safeSpaceBottom - safeAreaInsets.bottom, // bottom constraint
+    };
+
+    const snapPoints = useMemo(() => {
+      return snapPointsProp && sheetHeight > 0
+        ? computeSnapPoints({
+            sheetHeight,
+            snapPointsProp,
+            minSnapValue,
+            maxSnapValue,
+          })
+        : [];
+    }, [sheetHeight, snapPointsProp, minSnapValue, maxSnapValue]);
+
     const closedY = sheetHeight > 0 ? sheetHeight : windowHeight;
     const y = useMotionValue(closedY);
+    const yUnconstrainedRef = useRef<number | undefined>(undefined);
+    // y is below 0 when the sheet is overextended
+    // this happens because the sheet is elastic and can be dragged beyond the full open position
+    const yOverflow = useTransform(y, (val) => (val < 0 ? Math.abs(val) : 0));
     const yInverted = useTransform(y, (val) => Math.max(sheetHeight - val, 0));
     const indicatorRotation = useMotionValue(0);
 
@@ -98,7 +165,8 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     const keyboard = useVirtualKeyboard({
       isEnabled: isOpen && avoidKeyboard,
-      containerRef: sheetRef,
+      positionerRef,
+      debounceDelay: 0,
     });
 
     // Disable drag if the keyboard is open to avoid weird behavior
@@ -106,10 +174,10 @@ export const Sheet = forwardRef<any, SheetProps>(
 
     // +2 for tolerance in case the animated value is slightly off
     const zIndex = useTransform(y, (val) =>
-      val + 2 >= closedY ? -1 : (style?.zIndex ?? 9999)
+      val >= closedY ? -1 : (style?.zIndex ?? 9999)
     );
     const visibility = useTransform(y, (val) =>
-      val + 2 >= closedY ? 'hidden' : 'visible'
+      val >= closedY ? 'hidden' : 'visible'
     );
 
     const updateSnap = useStableCallback((snapIndex: number) => {
@@ -132,72 +200,96 @@ export const Sheet = forwardRef<any, SheetProps>(
       return null;
     });
 
-    const snapTo = useStableCallback(async (snapIndex: number) => {
-      if (!snapPointsProp) {
-        console.warn('Snapping is not possible without `snapPoints` prop.');
-        return;
+    const snapTo = useStableCallback(
+      async (snapIndex: number, options?: { immediate?: boolean }) => {
+        if (!snapPointsProp) {
+          console.warn('Snapping is not possible without `snapPoints` prop.');
+          return;
+        }
+
+        if (currentSnap === snapIndex) return;
+
+        const snapPoint = getSnapPoint(snapIndex);
+
+        if (snapPoint === null) {
+          console.warn(`Invalid snap index ${snapIndex}.`);
+          return;
+        }
+
+        if (snapIndex === 0) {
+          onClose();
+          return;
+        }
+
+        if (options?.immediate) {
+          y.set(snapPoint.snapValueY);
+          updateSnap(snapIndex);
+          return;
+        }
+
+        await animate(y, snapPoint.snapValueY, {
+          ...animationOptions,
+          onComplete: () => updateSnap(snapIndex),
+        });
       }
-
-      const snapPoint = getSnapPoint(snapIndex);
-
-      if (snapPoint === null) {
-        console.warn(`Invalid snap index ${snapIndex}.`);
-        return;
-      }
-
-      if (snapIndex === 0) {
-        onClose();
-        return;
-      }
-
-      await animate(y, snapPoint.snapValueY, {
-        ...animationOptions,
-        onComplete: () => updateSnap(snapIndex),
-      });
-    });
+    );
 
     const blurActiveInput = useStableCallback(() => {
       // Find focused input inside the sheet and blur it when dragging starts
       // to prevent a weird ghost caret "bug" on mobile
       const focusedElement = document.activeElement as HTMLElement | null;
-      if (!focusedElement || !sheetRef.current) return;
+      if (!focusedElement || !positionerRef.current) return;
 
       const isInput =
         focusedElement.tagName === 'INPUT' ||
         focusedElement.tagName === 'TEXTAREA';
 
       // Only blur the focused element if it's inside the sheet
-      if (isInput && sheetRef.current.contains(focusedElement)) {
+      if (isInput && positionerRef.current.contains(focusedElement)) {
         focusedElement.blur();
       }
     });
 
     const onDrag = useStableCallback<DragHandler>((event, info) => {
-      onDragProp?.(event, info);
+      if (yUnconstrainedRef.current === undefined) return;
 
-      const currentY = y.get();
+      onDragProp?.(event, info);
+      if (event.defaultPrevented) return;
 
       // Update drag indicator rotation based on drag velocity
       const velocity = y.getVelocity();
       if (velocity > 0) indicatorRotation.set(10);
       if (velocity < 0) indicatorRotation.set(-10);
 
-      // Make sure user cannot drag beyond the top of the sheet
-      y.set(Math.max(currentY + info.delta.y, 0));
+      const currentY = yUnconstrainedRef.current;
+      const nextY = currentY + info.delta.y;
+      yUnconstrainedRef.current = nextY;
+      const constrainedY = applyConstraints(nextY, dragConstraints, {
+        min: 0.1,
+        max: 0.1,
+      });
+      y.set(constrainedY);
     });
 
     const onDragStart = useStableCallback<DragHandler>((event, info) => {
-      blurActiveInput();
+      yUnconstrainedRef.current = y.get();
+      if (y.isAnimating()) {
+        y.stop();
+      }
       onDragStartProp?.(event, info);
+      if (event.defaultPrevented) return;
+      blurActiveInput();
     });
 
     const onDragEnd = useStableCallback<DragHandler>((event, info) => {
-      blurActiveInput();
       onDragEndProp?.(event, info);
+      if (event.defaultPrevented) return;
+      blurActiveInput();
 
       const currentY = y.get();
 
       let yTo = 0;
+      let snapIndex: number | undefined;
 
       const currentSnapPoint =
         currentSnap !== undefined ? getSnapPoint(currentSnap) : null;
@@ -226,6 +318,7 @@ export const Sheet = forwardRef<any, SheetProps>(
         }
 
         yTo = result.yTo;
+        snapIndex = result.snapIndex;
 
         // If disableDismiss is true, prevent closing via gesture
         if (disableDismiss && yTo + 1 >= sheetHeight) {
@@ -234,6 +327,7 @@ export const Sheet = forwardRef<any, SheetProps>(
 
           if (bottomSnapPoint) {
             yTo = bottomSnapPoint.snapValueY;
+            snapIndex = bottomSnapPoint.snapIndex;
             updateSnap(bottomSnapPoint.snapIndex);
           } else {
             // If no open snap points available, stay at current position
@@ -256,8 +350,15 @@ export const Sheet = forwardRef<any, SheetProps>(
         }
       }
 
+      const shouldBounce = currentSnapPoint?.snapIndex !== snapIndex;
+
+      const bounce = shouldBounce
+        ? linear(Math.abs(info.velocity.y), 0, 1000, 0.175, 0.25)
+        : 0;
+
       // Update the spring value so that the sheet is animated to the snap point
-      animate(y, yTo, animationOptions);
+      animate(y, yTo, { ...animationOptions, bounce });
+      yUnconstrainedRef.current = undefined;
 
       // +1px for imprecision tolerance
       // Only call onClose if disableDismiss is false or if we're actually closing
@@ -269,12 +370,39 @@ export const Sheet = forwardRef<any, SheetProps>(
       indicatorRotation.set(0);
     });
 
-    useImperativeHandle(ref, () => ({
-      y,
-      yInverted,
-      height: sheetHeight,
-      snapTo,
-    }));
+    const openStateRef = useRef<'closed' | 'open' | 'opening' | 'closing'>(
+      isOpen ? 'opening' : 'closed'
+    );
+
+    const currentSnapPoint = currentSnap
+      ? (snapPoints[currentSnap] ?? null)
+      : null;
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        y,
+        yInverted,
+        height: sheetHeight,
+        snapTo,
+        getSnapPoint,
+        snapPoints,
+        currentSnap,
+        currentSnapPoint,
+        openStateRef,
+      }),
+      [
+        y,
+        yInverted,
+        sheetHeight,
+        snapTo,
+        getSnapPoint,
+        snapPoints,
+        currentSnap,
+        currentSnapPoint,
+        openStateRef,
+      ]
+    );
 
     useModalEffect({
       y,
@@ -285,6 +413,53 @@ export const Sheet = forwardRef<any, SheetProps>(
       startThreshold: modalEffectThreshold,
     });
 
+    const lastSnapPointIndex = snapPoints.length - 1;
+
+    const handleKeyboardOpen = useStableCallback(() => {
+      if (!onKeyboardOpen) {
+        const currentSnapPoint = currentSnap;
+        if (currentSnapPoint === lastSnapPointIndex) return;
+
+        // fully open the sheet
+        snapTo(lastSnapPointIndex, { immediate: true });
+
+        // restore the previous snap point once the keyboard is closed
+        return () => {
+          currentSnapPoint !== undefined &&
+            snapTo(currentSnapPoint, { immediate: true });
+        };
+      }
+
+      return onKeyboardOpen();
+    });
+
+    useSnapOnFocus({
+      containerRef: positionerRef,
+      isOpen: openStateRef.current === 'open',
+      currentSnap,
+      lastSnapPointIndex,
+      isEnabled: detent === 'default',
+      onSnapToFull: handleKeyboardOpen,
+    });
+
+    useScrollToFocusedInput({
+      containerRef,
+      isKeyboardOpen: keyboard.isKeyboardOpen,
+      keyboardHeight: keyboard.keyboardHeight,
+      bottomOffset: safeAreaInsets.bottom + safeSpaceBottom,
+    });
+
+    // keep the sheet at the current snap point if it changes
+    const currentSnapPointY = currentSnap
+      ? snapPoints[currentSnap]?.snapValueY
+      : null;
+    useEffect(() => {
+      if (currentSnapPointY === undefined) return;
+      if (currentSnapPointY === null) return;
+      if (openStateRef.current !== 'open') return;
+      animate(y, currentSnapPointY);
+    }, [currentSnapPointY]);
+
     /**
      * Motion should handle body scroll locking but it's not working properly on iOS.
      * Scroll locking from React Aria seems to work much better 🤷‍♂️
@@ -293,37 +468,164 @@ export const Sheet = forwardRef<any, SheetProps>(
       isDisabled: disableScrollLocking || !isOpen,
     });
 
+    // Close the sheet when the escape key is pressed
+    useEffect(() => {
+      if (!isOpen || disableCloseOnEscape) return;
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+          if (inert === '') return;
+
+          const visibilityValue = visibility.get();
+          if (visibilityValue === 'hidden') return;
+
+          event.preventDefault();
+          onClose();
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [disableCloseOnEscape, isOpen, onClose, visibility, inert]);
+
+    const yListenersRef = useRef<VoidFunction[]>([]);
+    const clearYListeners = useStableCallback(() => {
+      yListenersRef.current.forEach((listener) => listener());
+      yListenersRef.current = [];
+    });
+
     const state = useSheetState({
       isOpen,
-      onOpen: async () => {
-        onOpenStart?.();
+      onOpening: () => {
+        return new Promise((resolve, reject) => {
+          clearYListeners();
 
-        /**
-         * This is not very React-y but we need to wait for the sheet
-         * but we need to wait for the sheet to be rendered and visible
-         * before we can measure it and animate it to the initial snap point.
-         */
-        await waitForElement('react-modal-sheet-container');
+          openStateRef.current = 'opening';
+          y.stop();
+          onOpenStart?.();
 
-        const initialSnapPoint =
-          initialSnap !== undefined ? getSnapPoint(initialSnap) : null;
+          const handleOpenEnd = () => {
+            if (initialSnap !== undefined) {
+              updateSnap(initialSnap);
+            }
 
-        const yTo = initialSnapPoint?.snapValueY ?? 0;
+            // Lock the content height for initial-content detent to prevent resizing
+            // Use ref to get current measured height (not stale closure value)
+            const currentMeasuredHeight = measuredContentHeightRef.current;
+            if (detent === 'initial-content' && currentMeasuredHeight > 0) {
+              setLockedContentHeight(currentMeasuredHeight);
+            }
 
-        await animate(y, yTo, animationOptions);
+            openStateRef.current = 'open';
+            requestAnimationFrame(() => {
+              onOpenEnd?.();
+            });
+          };
 
-        if (initialSnap !== undefined) {
-          updateSnap(initialSnap);
-        }
+          const doWhenSheetReady = () => {
+            const initialSnapPoint =
+              initialSnap !== undefined ? getSnapPoint(initialSnap) : null;
 
-        onOpenEnd?.();
+            const onAnimationComplete = makeCallableSingleTime(() => {
+              clearYListeners();
+              handleOpenEnd();
+              resolve();
+            });
+
+            if (!initialSnapPoint) {
+              console.warn(
+                'No initial snap point found',
+                initialSnap,
+                snapPoints
+              );
+              onAnimationComplete();
+              return;
+            }
+
+            if (skipOpenAnimation) {
+              handleOpenEnd();
+              resolve();
+              y.set(initialSnapPoint.snapValueY);
+            } else {
+              yListenersRef.current.push(
+                y.on('animationCancel', () => {
+                  clearYListeners();
+                  if (openStateRef.current === 'opening') {
+                    onAnimationComplete();
+                  } else {
+                    reject('stopped opening');
+                  }
+                }),
+                y.on('animationComplete', onAnimationComplete)
+              );
+
+              animate(y, initialSnapPoint.snapValueY, animationOptions).then(
+                onAnimationComplete
+              );
+            }
+          };
+
+          /**
+           * This is not very React-y but we need to wait for the sheet
+           * but we need to wait for the sheet to be rendered and visible
+           * before we can measure it and animate it to the initial snap point.
+           */
+          if (isContentDetent) {
+            waitForElement('react-modal-sheet-container').then(
+              doWhenSheetReady
+            );
+          } else {
+            doWhenSheetReady();
+          }
+        });
       },
-      onClosing: async () => {
-        onCloseStart?.();
+      onClosing: () => {
+        return new Promise((resolve, reject) => {
+          clearYListeners();
 
-        await animate(y, closedY, animationOptions);
+          y.stop();
+          openStateRef.current = 'closing';
+          onCloseStart?.();
 
-        onCloseEnd?.();
+          const handleCloseEnd = () => {
+            // Reset locked content height for initial-content detent
+            if (detent === 'initial-content') {
+              setLockedContentHeight(null);
+            }
+
+            if (onCloseEnd) {
+              // waiting a frame to ensure the sheet is fully closed
+              // otherwise it was causing some issue with AnimatePresence's safeToRemove
+              requestAnimationFrame(() => onCloseEnd());
+            }
+            openStateRef.current = 'closed';
+          };
+
+          const onAnimationComplete = makeCallableSingleTime(() => {
+            clearYListeners();
+            handleCloseEnd();
+            resolve();
+          });
+
+          yListenersRef.current.push(
+            y.on('animationCancel', () => {
+              clearYListeners();
+
+              if (openStateRef.current === 'closing') {
+                onAnimationComplete();
+              } else {
+                reject('stopped closing');
+              }
+            }),
+            y.on('animationComplete', () => {
+              onAnimationComplete();
+            })
+          );
+
+          animate(y, closedY, animationOptions).then(() => {
+            onAnimationComplete();
+          });
+        });
       },
     });
 
@@ -345,9 +647,15 @@ export const Sheet = forwardRef<any, SheetProps>(
       indicatorRotation,
       avoidKeyboard,
       sheetBoundsRef,
-      sheetRef,
+      positionerRef,
+      containerRef,
       unstyled,
       y,
+      yOverflow,
+      sheetHeight,
+      safeSpaceTop: safeSpaceTop + safeAreaInsets.top,
+      safeSpaceBottom: safeSpaceBottom + safeAreaInsets.bottom,
+      lockedContentHeight,
     };
 
     const sheet = (
@@ -355,7 +663,9 @@ export const Sheet = forwardRef<any, SheetProps>(
         <motion.div
           {...rest}
           ref={ref}
+          inert={inert}
           data-sheet-state={state}
+          data-sheet-detent={detent}
           className={`react-modal-sheet-root ${className}`}
           style={{
             ...applyStyles(styles.root, unstyled),
@@ -376,3 +686,26 @@ export const Sheet = forwardRef<any, SheetProps>(
 );
 
 Sheet.displayName = 'Sheet';
+
+function linear(
+  value: number,
+  inputMin: number,
+  inputMax: number,
+  outputMin: number,
+  outputMax: number
+): number {
+  const t = Math.max(
+    0,
+    Math.min(1, (value - inputMin) / (inputMax - inputMin))
+  );
+  return outputMin + (outputMax - outputMin) * t;
+}
+
+function makeCallableSingleTime<T>(fn: () => T) {
+  let called = false;
+  return () => {
+    if (called) return;
+    called = true;
+    fn();
+  };
+}
